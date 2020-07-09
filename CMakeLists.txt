@@ -1,0 +1,62 @@
+cmake_minimum_required(VERSION 3.10)
+project(BCPNN CXX)
+
+if (POLICY CMP0074)
+  cmake_policy(SET CMP0074 NEW)
+endif()
+
+add_subdirectory(pybind11)
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
+
+if(NOT BLA_VENDOR)
+  set(BLA_VENDOR Intel10_64ilp)
+endif()
+
+if(NOT ARCH)
+  set(ARCH "-march=native")
+else()
+  set(ARCH "-march=${ARCH}")
+endif()
+
+if(NOT BUILD_SHARED_LIBS)
+  set(BUILD_SHARED_LIBS ON)
+endif()
+
+find_package(OpenMP)
+find_package(MKL)
+
+if(OpenMP_CXX_FOUND AND MKL_FOUND)
+  pybind11_add_module(_bcpnn_kernels_openmp_internal BCPNN/backend/_kernels/kernels_openmp_internal.cc)
+  target_include_directories(_bcpnn_kernels_openmp_internal PRIVATE
+    ${MKL_INCLUDE_DIRS})
+  target_link_libraries(_bcpnn_kernels_openmp_internal PRIVATE
+    ${MKL_LIBRARIES}
+    OpenMP::OpenMP_CXX)
+  target_compile_options(_bcpnn_kernels_openmp_internal PUBLIC "-O3")
+  target_compile_options(_bcpnn_kernels_openmp_internal PUBLIC "${ARCH}")
+endif()
+
+find_package(CUDA)
+if(CUDA_FOUND)
+  enable_language(CUDA)
+  # CUDA Kernel backend
+  pybind11_add_module(_bcpnn_kernels_cuda_internal MODULE
+    BCPNN/backend/_kernels/kernels_cuda_internal.cu
+  )
+  target_compile_options(_bcpnn_kernels_cuda_internal PRIVATE
+    "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75>"
+  )
+  target_link_libraries(_bcpnn_kernels_cuda_internal PRIVATE curand cublas)
+  
+  # Fully offloaded CUDA backend
+  pybind11_add_module(_bcpnn_backend_full_cuda_internals MODULE
+    BCPNN/backend/full_cuda_backend/backend_full_cuda_internals.cu
+    BCPNN/backend/full_cuda_backend/dataset.cpp
+    BCPNN/backend/full_cuda_backend/helpers_training.cu
+    BCPNN/backend/full_cuda_backend/helpers_cuda.cu
+  )
+  target_compile_options(_bcpnn_backend_full_cuda_internals PRIVATE
+    "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75>"
+  )
+  target_link_libraries(_bcpnn_backend_full_cuda_internals PRIVATE curand cublas)
+endif()
