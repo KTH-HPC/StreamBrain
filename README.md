@@ -47,9 +47,9 @@ StreamBrain will display the name of the backend that is being used as well as a
 ```
 Using GPU backend.
 Layer - 1/2
-Epoch 1/15: 100%|████████████████████████████████████████████████| 469/469 [00:17<00:00, 26.27it/s]
+Epoch 1/15: 100%|███████████████████████████████████████████████| 469/469 [00:17<00:00, 26.27it/s]
 Layer - 1/2
-Epoch 2/15:   3%|█████▎                                          | 16/469 [00:01<00:44, 10.09it/s]
+Epoch 2/15:   3%|████                                           | 16/469 [00:01<00:44, 10.09it/s]
 .
 .
 .
@@ -57,11 +57,11 @@ Epoch 2/15:   3%|█████▎                                          | 1
 .
 .
 Layer - 2/2
-Epoch 25/25: 100%|███████████████████████████████████████████████| 469/469 [00:06<00:00, 72.74it/s]
-Evaluation: 100%|████████████████████████████████████████████████| 79/79 [00:01<00:00, 76.39it/s]
+Epoch 25/25: 100%|██████████████████████████████████████████████| 469/469 [00:06<00:00, 72.74it/s]
+Evaluation: 100%|███████████████████████████████████████████████| 79/79 [00:01<00:00, 76.39it/s]
 Training duration: 520.6510210037231
 Testing duration: 1.0513603687286377
 Accuracy: 0.9326
 ```
-### License
+## License
 StreamBrain is developed by Stefano Markidis, Martin Svedi, Artur Podobas, and Steven W. D. Chien. The software is released under BSD 2-Clause license. See the LICENSE for details.
