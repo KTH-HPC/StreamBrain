@@ -58,7 +58,7 @@ Testing duration: 1.0513603687286377
 Accuracy: 0.9326
 ```
 ### License
-StreamBrain is developed by Stefano Markidis, Martin Svedi, Artur Podobas, and Steven W. D. Chien. The software is released under BSD-2 clause license.
+StreamBrain is developed by Stefano Markidis, Martin Svedi, Artur Podobas, and Steven W. D. Chien. The software is released under BSD 2-Clause license.
 ```
 Copyright (c) 2020 KTH Royal Institute of Technology
 
