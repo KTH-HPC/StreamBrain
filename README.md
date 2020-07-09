@@ -38,7 +38,14 @@ gzip -d t10k-images-idx3-ubyte.gz
 gzip -d t10k-labels-idx1-ubyte.gz
 ```
 ### Training
-Specify a backend using the environment variable BCPNN_BACKEND. Options include numpy, cpu, gpu, full_cuda and fpga. Run the training script and specify the batch sizes, 128 for example.
+Specify a backend using the environment variable BCPNN_BACKEND. There are a number of backends provided:
+- Numpy, default backend if the variable is not set (BCPNN_BACKEND=numpy)
+- Vectorization and OpenMP threading for CPU (BCPNN_BACKEND=cpu)
+- GPU offloaded computation kernels (BCPNN_BACKEND=gpu)
+- Fully GPU offloaded full layers (BCPNN_BACKEND=full_cuda)
+- FPGA (not available currently) (BCPNN_BACKEND=fpga)
+
+Run the training script and specify the batch sizes, 128 for example.
 ```
 export BCPNN_BACKEND=cpu
 python3 train.py 128
