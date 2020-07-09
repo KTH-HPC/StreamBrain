@@ -1,5 +1,6 @@
 # StreamBrain
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
+
 StreamBrain is a framework for implementing BCPNN networks in Python3.
 ## Installation
 StreamBrain requires a number of dependencies, including Numpy (MKL), CMake, GCC, CUDA (Optional), and FPGA toolchain (Optional). PyBind11 is included as a Git module and a patch needs to be applied to its CMake module before setting up.
