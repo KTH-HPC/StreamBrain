@@ -2,6 +2,8 @@ import numpy as np
 import BCPNN
 import time
 
+np.random.seed(0)
+
 def load_mnist(image_file, label_file, dtype=np.float64):
     imgs = np.fromfile(image_file, dtype=np.uint8)
     imgs = imgs[16:]
@@ -27,9 +29,10 @@ if __name__ == "__main__":
         sys.exit(1)
 
     batch_size = int(sys.argv[1])
+    precision = np.float32
 
-    training_images, training_labels = load_mnist("train-images-idx3-ubyte", "train-labels-idx1-ubyte")
-    testing_images, testing_labels = load_mnist("t10k-images-idx3-ubyte", "t10k-labels-idx1-ubyte")
+    training_images, training_labels = load_mnist("train-images-idx3-ubyte", "train-labels-idx1-ubyte", dtype=precision)
+    testing_images, testing_labels = load_mnist("t10k-images-idx3-ubyte", "t10k-labels-idx1-ubyte", dtype=precision)
 
     n_inputs = 28*28
     n_hypercolumns = 30
@@ -45,8 +48,7 @@ if __name__ == "__main__":
     l1_khalf = -435.08426155834593
     l1_taubdt = 0.27826430798917945
 
-    #net = BCPNN.Network(np.float32)
-    net = BCPNN.Network(np.float64)
+    net = BCPNN.Network(precision)
     net.add_layer(BCPNN.StructuralPlasticityLayer(n_inputs, n_hypercolumns, n_minicolumns, taupdt, l1_khalf, l1_pmin, l1_taubdt, (1, 1/n_minicolumns, 1 * 1/n_minicolumns)))
     net.add_layer(BCPNN.DenseLayer(n_hidden, 1, n_outputs, taupdt, (1/n_minicolumns, 1/10, 1/n_minicolumns * 1/10)))
 

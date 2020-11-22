@@ -896,7 +896,7 @@ PYBIND11_MODULE(_bcpnn_kernels_cuda_internal, m)
   m.def("softmax_minicolumns_float32"    , &softmax_minicolumns<float>);
   m.def("update_counters_float32"        , &update_counters<float>);
   m.def("update_weights_float32"         , &update_weights<float>);
-  m.def("update_bias_float32 "           , &update_bias<float>);
+  m.def("update_bias_float32"            , &update_bias<float>);
   m.def("update_bias_regularized_float32", &update_bias_regularized<float>);
   m.def("update_mask_float32"            , &update_mask<float>);
   m.def("apply_mask_float32"             , &apply_mask<float>);
@@ -906,7 +906,7 @@ PYBIND11_MODULE(_bcpnn_kernels_cuda_internal, m)
   m.def("softmax_minicolumns_float64"    , &softmax_minicolumns<double>);
   m.def("update_counters_float64"        , &update_counters<double>);
   m.def("update_weights_float64"         , &update_weights<double>);
-  m.def("update_bias_float64 "           , &update_bias<double>);
+  m.def("update_bias_float64"            , &update_bias<double>);
   m.def("update_bias_regularized_float64", &update_bias_regularized<double>);
   m.def("update_mask_float64"            , &update_mask<double>);
   m.def("apply_mask_float64"             , &apply_mask<double>);

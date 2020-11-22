@@ -7,7 +7,7 @@ class DenseLayer(B.DenseLayer):
     #_update_state        = staticmethod(kernels_numpy.update_state)
     _update_state        = staticmethod(kernels_openmp.update_state)
     _softmax_minicolumns = staticmethod(kernels_numpy.softmax_minicolumns)
-    _update_bias         = staticmethod(kernels_numpy.update_bias)
+    _update_bias         = staticmethod(kernels_openmp.update_bias)
 
     def train_step(self, inputs, outputs):
         self.Ci, self.Cj, self.Cij, self.weights = kernels_openmp.update_weights(self.Ci, self.Cj, self.Cij, inputs, outputs, self.taupdt, self.weights, self.taupdt/2)
@@ -19,9 +19,9 @@ class StructuralPlasticityLayer(B.StructuralPlasticityLayer):
     #_update_state        = staticmethod(kernels_numpy.update_state)
     _update_state        = staticmethod(kernels_openmp.update_state)
     _softmax_minicolumns = staticmethod(kernels_numpy.softmax_minicolumns)
-    _update_bias         = staticmethod(kernels_numpy.update_bias_regularized)
-    _update_mask         = staticmethod(kernels_numpy.update_mask)
-    _apply_mask          = staticmethod(kernels_numpy.apply_mask)
+    _update_bias         = staticmethod(kernels_openmp.update_bias_regularized)
+    _update_mask         = staticmethod(kernels_openmp.update_mask)
+    _apply_mask          = staticmethod(kernels_openmp.apply_mask)
 
     def train_step(self, inputs, outputs, hypercolumn=None):
         self.Ci, self.Cj, self.Cij, self.weights = kernels_openmp.update_weights(self.Ci, self.Cj, self.Cij, inputs, outputs, self.taupdt, self.weights, self.taupdt/2)

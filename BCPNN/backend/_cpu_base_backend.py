@@ -75,7 +75,7 @@ class StructuralPlasticityLayer:
         self.Cj = initial_counters[1] * np.ones([self.out_features]).astype(dtype)
         self.Cij = initial_counters[2] * np.ones([self.in_features, self.out_features]).astype(dtype)
         self.kbi = np.ones([self.out_features]).astype(dtype)
-        self.wmask = (np.random.rand(self.in_features, self.hypercolumns) < 0.1).astype(np.int8)
+        self.wmask = (np.random.rand(self.in_features, self.hypercolumns) < 0.1).astype(np.uint8)
 
     def compute_activation(self, inputs):
         activations = np.zeros([inputs.shape[0], self.out_features], dtype=self.dtype)
