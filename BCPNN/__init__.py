@@ -19,6 +19,11 @@ if _BACKEND == 'numpy':
 elif _BACKEND == 'cpu':
     sys.stderr.write('Using CPU backend.\n')
     from .backend.cpu_backend import *
+elif _BACKEND == 'mpi':
+    from mpi4py import MPI
+    if MPI.COMM_WORLD.rank == 0:
+        sys.stderr.write('Using MPI backend.\n')
+    from .backend.mpi_backend import *
 elif _BACKEND == 'gpu':
     sys.stderr.write('Using GPU backend.\n')
     from .backend.cuda_backend import *

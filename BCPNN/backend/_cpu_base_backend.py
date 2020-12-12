@@ -1,5 +1,7 @@
+import sys
 import numpy as np
 from tqdm import tqdm
+from contextlib import nullcontext
 
 class DenseLayer:
     _update_state = None
@@ -109,6 +111,8 @@ class Network:
     def __init__(self, dtype):
         self.dtype = dtype
         self._layers = []
+        self.world_rank = 0
+        self.world_size = 1
 
     def add_layer(self, layer):
         if layer.dtype != self.dtype:
@@ -123,18 +127,32 @@ class Network:
         for layer_id, (layer, epochs) in enumerate(schedule):
             self._train_layer(layer_id, layer, maximal_batch_size, training_data, training_labels, epochs)
 
-    def evaluate(self, images, labels, batch_size):
+    def evaluate(self, images, labels, maximal_batch_size):
         images = images.astype(self.dtype)
         labels = labels.astype(self.dtype)
 
-        correct = 0
-        total = 0
-        number_of_batches = (images.shape[0] + batch_size - 1) // batch_size
-        with tqdm(total=number_of_batches) as pbar:
-            pbar.set_description('Evaluation')
+        correct = np.array([0])
+        total = np.array([0])
+        number_of_batches = (images.shape[0] + maximal_batch_size - 1) // maximal_batch_size
+
+        if self.world_rank == 0:
+            cm = tqdm(total=number_of_batches)
+        else:
+            cm = nullcontext()
+
+        if self.world_rank == 0: print('Evaluate', flush=True)
+        with cm as pbar:
+            if self.world_rank == 0: pbar.set_description('Evaluation')
             for i in range(number_of_batches):
-                batch_images = images[i*batch_size:(i+1)*batch_size, :]
-                batch_labels = labels[i*batch_size:(i+1)*batch_size, :]
+                global_start = i * maximal_batch_size
+                global_end = global_start + maximal_batch_size if global_start + maximal_batch_size <= images.shape[0] else images.shape[0]
+                local_batch_size = (global_end - global_start) // self.world_size
+
+                start_sample = global_start + self.world_rank * local_batch_size
+                end_sample   = start_sample + local_batch_size
+
+                batch_images = images[start_sample:end_sample, :]
+                batch_labels = labels[start_sample:end_sample, :]
 
                 activations = batch_images
                 for layer in self._layers:
@@ -142,13 +160,13 @@ class Network:
 
                 correct += (np.argmax(activations, axis=1) == np.argmax(batch_labels, axis=1)).sum()
                 total += batch_images.shape[0]
-                pbar.update(1)
+                if self.world_rank == 0: pbar.update(1)
 
-        return correct / total
+        return correct, total
 
     def _train_layer(self, layer_id, layer, maximal_batch_size, images, labels, epochs):
         for epoch in range(epochs):
-            print('Layer - %d/%d' % (layer_id+1, len(self._layers)))
+            if self.world_rank == 0: print('Layer - %d/%d' % (layer_id+1, len(self._layers)), flush=True)
             idx = np.random.permutation(range(images.shape[0]))
             shuffled_images = images[idx, :]
             shuffled_labels = labels[idx, :]
@@ -157,11 +175,24 @@ class Network:
             hypercolumns_shuffled = np.random.permutation(range(n_hypercolumns))
 
             number_of_batches = (images.shape[0] + maximal_batch_size - 1) // maximal_batch_size
-            with tqdm(total=number_of_batches) as pbar:
-                pbar.set_description('Epoch %d/%d' % (epoch+1, epochs))
+            local_batch_size  = maximal_batch_size // self.world_size
+
+            if self.world_rank == 0:
+                cm = tqdm(total=number_of_batches)
+            else:
+                cm = nullcontext()
+
+            with cm as pbar:
+                if self.world_rank == 0: pbar.set_description('Epoch %d/%d' % (epoch+1, epochs))
                 for i in range(number_of_batches):
-                    batch_images = shuffled_images[i*maximal_batch_size:(i+1)*maximal_batch_size, :]
-                    batch_labels = shuffled_labels[i*maximal_batch_size:(i+1)*maximal_batch_size, :]
+                    global_start = i * maximal_batch_size
+                    global_end = global_start + maximal_batch_size if global_start + maximal_batch_size <= images.shape[0] else images.shape[0]
+                    local_batch_size = (global_end - global_start) // self.world_size
+
+                    start_sample = global_start + self.world_rank * local_batch_size
+                    end_sample   = start_sample + local_batch_size
+                    batch_images = shuffled_images[start_sample:end_sample, :]
+                    batch_labels = shuffled_labels[start_sample:end_sample, :]
     
                     prev_activation = None
                     activation = batch_images
@@ -180,6 +211,6 @@ class Network:
                     else:
                         self._layers[layer].train_step(prev_activation, activation, h)
 
-                    pbar.update(1)
+                    if self.world_rank == 0: pbar.update(1)
     
                 self._layers[layer].train_finalize()

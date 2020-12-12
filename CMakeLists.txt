@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 project(BCPNN CXX)
+set(CMAKE_BUILD_TYPE "Debug")
 
 if (POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW)
@@ -23,17 +24,31 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 find_package(OpenMP)
-find_package(MKL)
+find_package(BLAS)
 
-if(OpenMP_CXX_FOUND AND MKL_FOUND)
+if(OpenMP_CXX_FOUND AND BLAS_FOUND)
   pybind11_add_module(_bcpnn_kernels_openmp_internal BCPNN/backend/_kernels/kernels_openmp_internal.cc)
   target_include_directories(_bcpnn_kernels_openmp_internal PRIVATE
-    ${MKL_INCLUDE_DIRS})
+    ${BLAS_INCLUDE_DIRS})
   target_link_libraries(_bcpnn_kernels_openmp_internal PRIVATE
-    ${MKL_LIBRARIES}
+    ${BLAS_LIBRARIES}
     OpenMP::OpenMP_CXX)
   target_compile_options(_bcpnn_kernels_openmp_internal PUBLIC "-O3")
   target_compile_options(_bcpnn_kernels_openmp_internal PUBLIC "${ARCH}")
+endif()
+
+find_package(MPI)
+
+if(MPI_CXX_FOUND AND OpenMP_CXX_FOUND AND BLAS_FOUND)
+  pybind11_add_module(_bcpnn_kernels_mpi_internal BCPNN/backend/_kernels/kernels_mpi_internal.cc)
+  target_include_directories(_bcpnn_kernels_mpi_internal PRIVATE
+    ${BLAS_INCLUDE_DIRS})
+  target_link_libraries(_bcpnn_kernels_mpi_internal PRIVATE
+    ${BLAS_LIBRARIES}
+    OpenMP::OpenMP_CXX
+    MPI::MPI_CXX)
+  target_compile_options(_bcpnn_kernels_mpi_internal PUBLIC "-O3")
+  target_compile_options(_bcpnn_kernels_mpi_internal PUBLIC "${ARCH}")
 endif()
 
 find_package(CUDA)
@@ -43,6 +58,7 @@ if(CUDA_FOUND)
   pybind11_add_module(_bcpnn_kernels_cuda_internal MODULE
     BCPNN/backend/_kernels/kernels_cuda_internal.cu
   )
+  #set_property(TARGET _bcpnn_kernels_cuda_internal PROPERTY CUDA_ARCHITECTURES 60 61 70 75)
   target_compile_options(_bcpnn_kernels_cuda_internal PRIVATE
     "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75>"
   )
@@ -55,8 +71,11 @@ if(CUDA_FOUND)
     BCPNN/backend/full_cuda_backend/helpers_training.cu
     BCPNN/backend/full_cuda_backend/helpers_cuda.cu
   )
+  #set_property(TARGET _bcpnn_backend_full_cuda_internals PROPERTY CUDA_ARCHITECTURES 60 61 70 75)
   target_compile_options(_bcpnn_backend_full_cuda_internals PRIVATE
     "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75>"
   )
   target_link_libraries(_bcpnn_backend_full_cuda_internals PRIVATE curand cublas)
 endif()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math")
