@@ -23,10 +23,13 @@ def load_mnist(image_file, label_file, dtype=np.float64):
 
 if __name__ == "__main__":
     import sys
+    from mpi4py import MPI
 
     if len(sys.argv) != 2:
         print("Usage: python", sys.argv[0], "<batch size>")
         sys.exit(1)
+
+    world_rank = MPI.COMM_WORLD.Get_rank()
 
     batch_size = int(sys.argv[1])
     precision = np.float32
@@ -57,9 +60,11 @@ if __name__ == "__main__":
     train_stop = time.time()
 
     test_start = time.time()
-    accuracy = net.evaluate(testing_images, testing_labels, batch_size)
+    correct, total = net.evaluate(testing_images, testing_labels, batch_size)
     test_stop = time.time()
+    accuracy = correct / total
 
-    print('Training duration: '+str(train_stop-train_start))
-    print('Testing duration: '+str(test_stop-test_start))
-    print('Accuracy: '+str(accuracy))
+    if world_rank == 0:
+        print('Training duration: '+str(train_stop-train_start))
+        print('Testing duration: '+str(test_stop-test_start))
+        print('Accuracy: '+str(accuracy))

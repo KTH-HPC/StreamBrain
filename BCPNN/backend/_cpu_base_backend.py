@@ -140,7 +140,6 @@ class Network:
         else:
             cm = nullcontext()
 
-        if self.world_rank == 0: print('Evaluate', flush=True)
         with cm as pbar:
             if self.world_rank == 0: pbar.set_description('Evaluation')
             for i in range(number_of_batches):

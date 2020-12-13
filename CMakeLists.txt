@@ -10,7 +10,7 @@ add_subdirectory(pybind11)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
 
 if(NOT BLA_VENDOR)
-  set(BLA_VENDOR Intel10_64ilp)
+  set(BLA_VENDOR All)
 endif()
 
 if(NOT ARCH)

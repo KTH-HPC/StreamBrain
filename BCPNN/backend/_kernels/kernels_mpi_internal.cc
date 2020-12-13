@@ -5,6 +5,7 @@
 #include <cblas.h>
 #include <mpi.h>
 
+#define VEC_LENGTH 64
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
 #include <pybind11/pybind11.h>
@@ -36,25 +37,22 @@ namespace helpers {
 
 namespace offsets {
 
-void compute_offsets(size_t size, int world_rank, int world_size, int *stride, int *displs, int *rcounts)
+void compute_offsets(size_t size, int world_rank, int world_size, int *displs, int *rcounts)
 {
-    MPI_Request displs_req;
-
     /* compute stride */
-    *stride = size / world_size;
-
+    size_t stride = size / world_size;
+    
+#pragma omp parallel for
     for (size_t i = 0; i < world_size; i++) {
         /* compute displacements */
-        displs[i] = i * (*stride);
-
+        displs[i] = i * stride;
+    
         /* compute offsets and tailing offset */
-        rcounts[i] = (*stride);
-        if (i == world_size - 1 && size % world_size != 0)
-            rcounts[i] = size - (*stride) * (world_size - 1);
+        rcounts[i] = stride;
     }
 
-    MPI_Bcast(displs, world_size, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(rcounts, world_size, MPI_INT, 0, MPI_COMM_WORLD);
+    if (size % world_size != 0)
+        rcounts[world_size - 1] = size - stride * (world_size - 1);
 }
 
 } // namespace offsets
@@ -97,8 +95,8 @@ REAL updateWeights(REAL C, REAL *Ci, REAL *Cj, REAL *Cij,
                               const long in_features, const long out_features,
                               REAL *weights, const REAL cthr)
 {
-    size_t BS = 64 / sizeof(REAL);
-    typedef REAL VECTOR __attribute__ ((vector_size (64)));
+    size_t BS = VEC_LENGTH / sizeof(REAL);
+    typedef REAL VECTOR __attribute__ ((vector_size (VEC_LENGTH)));
 
     if (world_size == 0) {
         MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
@@ -114,13 +112,15 @@ REAL updateWeights(REAL C, REAL *Ci, REAL *Cj, REAL *Cij,
     
     REAL one_minus_taupdt = (1.0 - taupdt);
     REAL *tmp_array = (REAL*)malloc(sizeof(REAL) * in_features * out_features);
+    REAL *Ci_tmp_array = (REAL*)malloc(sizeof(REAL) * in_features);
+    REAL *Cj_tmp_array = (REAL*)malloc(sizeof(REAL) * out_features);
 
 #pragma omp parallel firstprivate(one_minus_taupdt,C)
 {
-#pragma omp for
-    for (int j = 0; j < in_features; j+=BS) {
+#pragma omp for nowait
+    for (size_t j = 0; j < in_features; j+=BS) {
         VECTOR tmp = {0.0};
-        for (int i = 0; i < batch_size; i++) {
+        for (size_t i = 0; i < batch_size; i++) {
             VECTOR a_i_ld;
             #pragma unroll
             for (int vl = j; vl < MIN(in_features,j+BS); vl++)
@@ -129,20 +129,38 @@ REAL updateWeights(REAL C, REAL *Ci, REAL *Cj, REAL *Cij,
         }
 
         #pragma unroll
-        for (int ij = j; ij < MIN(in_features,j+BS); ij++)
-            tmp_array[ij] = tmp[ij-j];
+        for (size_t ij = j; ij < MIN(in_features,j+BS); ij++)
+            Ci_tmp_array[ij] = tmp[ij-j];
+    }
+
+#pragma omp for schedule(static)
+    for (size_t j = 0; j < out_features; j+=BS) {
+        VECTOR tmp = {0.0};
+        for (size_t i = 0; i < batch_size; i++) {
+            VECTOR a_i_ld;
+            #pragma unroll
+            for (size_t vl = j; vl < MIN(out_features,j+BS); vl++)
+                a_i_ld[vl-j] = a_o[i * out_features + vl];
+            tmp += a_i_ld;
+        }
+        #pragma unroll
+        for (size_t ij = j; ij < MIN(out_features,j+BS); ij++)
+            Cj_tmp_array[ij] = tmp[ij-j];
     }
 
 #pragma omp single
-    MPI_Allreduce(MPI_IN_PLACE, tmp_array, in_features, datatype, MPI_SUM, MPI_COMM_WORLD);
+    {
+        MPI_Allreduce(MPI_IN_PLACE, Ci_tmp_array, in_features, datatype, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, Cj_tmp_array, out_features, datatype, MPI_SUM, MPI_COMM_WORLD);
+    }
 
-#pragma omp for nowait
-    for (int j = 0; j < in_features; j+=BS) {
+#pragma omp for nowait schedule(static)
+    for (size_t j = 0; j < in_features; j+=BS) {
 	register VECTOR C_p;
 	register VECTOR tmp;
         #pragma unroll
 	for (int ij = j; ij < MIN(in_features,j+BS); ij++)
-	  tmp[ij-j] = tmp_array[ij];
+	  tmp[ij-j] = Ci_tmp_array[ij];
         #pragma unroll
 	for (int ij = j; ij < MIN(in_features,j+BS); ij++)
 	  C_p[ij-j] = Ci[ij];
@@ -152,37 +170,19 @@ REAL updateWeights(REAL C, REAL *Ci, REAL *Cj, REAL *Cij,
         C_p += tmp;
         #pragma unroll
 	for (int ij = j; ij < MIN(in_features,j+BS); ij++)
-	  Ci[ij] = C_p[ij-j];
+	  Ci[ij] = std::max((REAL)0.0, C_p[ij-j]);
       }
 //Ci[i] = one_minus_taupdt * Ci[i] + (tmp_array[i] / (REAL)(batch_size * world_size) * taupdt);
 
-#pragma omp for schedule(static)
-    for (int j = 0; j < out_features; j+=BS) {
-        VECTOR tmp = {0.0};
-        for (int i = 0; i < batch_size; i++) {
-            VECTOR a_i_ld;
-            #pragma unroll
-            for (int vl = j; vl < MIN(out_features,j+BS); vl++)
-                a_i_ld[vl-j] = a_o[i * out_features + vl];
-            tmp += a_i_ld;
-        }
-        #pragma unroll
-        for (int ij = j; ij < MIN(out_features,j+BS); ij++)
-            tmp_array[ij] = tmp[ij-j];
-    }
-
-#pragma omp single
-    MPI_Allreduce(MPI_IN_PLACE, tmp_array, out_features, datatype, MPI_SUM, MPI_COMM_WORLD);
-
 #pragma omp for nowait schedule(static)
-    for (int j = 0; j < out_features; j+=BS) {
+    for (size_t j = 0; j < out_features; j+=BS) {
 	register VECTOR C_p;
 	register VECTOR tmp;
         #pragma unroll
-	for (int ij = j; ij < MIN(out_features,j+BS); ij++)
-            tmp[ij-j] = tmp_array[ij];
+	for (size_t ij = j; ij < MIN(out_features,j+BS); ij++)
+            tmp[ij-j] = Cj_tmp_array[ij];
         #pragma unroll
-        for (int ij = j; ij < MIN(out_features,j+BS); ij++)
+        for (size_t ij = j; ij < MIN(out_features,j+BS); ij++)
             C_p[ij-j] = Cj[ij];
  
         tmp /= (REAL) (batch_size * world_size);
@@ -191,30 +191,30 @@ REAL updateWeights(REAL C, REAL *Ci, REAL *Cj, REAL *Cij,
         C_p += tmp;
          
         #pragma unroll
-        for (int ij = j; ij < MIN(out_features,j+BS); ij++)
-            Cj[ij] = C_p[ij-j];
+        for (size_t ij = j; ij < MIN(out_features,j+BS); ij++)
+            Cj[ij] = std::max((REAL)0.0, C_p[ij-j]);
     }
 
 //Cj[i] = one_minus_taupdt * Cj[i] + (tmp_array[i] / (REAL)(batch_size * world_size) * taupdt);
 
-#pragma omp for
-    for (int i = 0; i < in_features; i++) {
-        for (int j = 0; j < out_features; j+=BS) {
+#pragma omp for schedule(static)
+    for (size_t i = 0; i < in_features; i++) {
+        for (size_t j = 0; j < out_features; j+=BS) {
             VECTOR tmp = {0.0};
             
-            for (int batch = 0; batch < batch_size; batch++) {
+            for (size_t batch = 0; batch < batch_size; batch++) {
                 REAL a_i_pl = a_i[batch * in_features + i];
                 VECTOR a_o_pl;
                 
                 #pragma unroll
-                for (int vl = j; vl < MIN(out_features,j+BS); vl++)
+                for (size_t vl = j; vl < MIN(out_features,j+BS); vl++)
                     a_o_pl[vl-j] = a_o[batch * out_features + vl];
                 
                 tmp += (a_i_pl * a_o_pl);
             }
 
             #pragma unroll
-            for (int vl = j; vl < MIN(out_features,j+BS); vl++)
+            for (size_t vl = j; vl < MIN(out_features,j+BS); vl++)
                 tmp_array[i * out_features + vl] = tmp[vl-j];
         }
     }
@@ -222,12 +222,12 @@ REAL updateWeights(REAL C, REAL *Ci, REAL *Cj, REAL *Cij,
 #pragma omp single
     MPI_Allreduce(MPI_IN_PLACE, tmp_array, in_features * out_features, datatype, MPI_SUM, MPI_COMM_WORLD);
 
-#pragma omp for
-    for (int i = 0; i < in_features; i++) {
+#pragma omp for schedule(static)
+    for (size_t i = 0; i < in_features; i++) {
         bool skip_weight = (Ci[i] < cthr) ? true : false;	  
         if (skip_weight)
             memset( &weights[i*out_features], 0, sizeof(REAL) * out_features);
-        for (int j = 0; j < out_features; j+=BS) {
+        for (size_t j = 0; j < out_features; j+=BS) {
             register VECTOR tmp = {0.0};
             register VECTOR C_p = {0.0};
             #pragma unroll
@@ -241,18 +241,23 @@ REAL updateWeights(REAL C, REAL *Ci, REAL *Cj, REAL *Cij,
             tmp *= taupdt;
             C_p *= one_minus_taupdt;
             C_p += tmp;
-            #pragma unroll
-            for (int vl = j; vl < MIN(out_features,j+BS); vl++)
-                Cij[i * out_features + vl] = C_p[vl-j];
 
             #pragma unroll
-            for (int vl = j; vl < MIN(out_features,j+BS); vl++)
-                weights[i * out_features + vl] = (Cj[vl] < cthr) ? 0.0 : log((C * C_p[vl-j]) / (Ci[i] * Cj[vl]));
+            for (size_t vl = j; vl < MIN(out_features,j+BS); vl++)
+                Cij[i * out_features + vl] = std::max((REAL)0.0, C_p[vl-j]);
+
+            if (!skip_weight)
+                #pragma unroll
+                for (size_t vl = j; vl < MIN(out_features,j+BS); vl++)
+                    weights[i * out_features + vl] = (Cj[vl] < cthr) ? 0.0 : std::log(std::max(Cij[i * out_features + vl], cthr * cthr * cthr * cthr) / (Ci[i] * Cj[vl]));
+                    //weights[i * out_features + vl] = (Cj[vl] < cthr) ? 0.0 : std::log((C * C_p[vl-j]) / (Ci[i] * Cj[vl]));
         }
     }
 } // end omp parallel
 
   free(tmp_array);
+  free(Ci_tmp_array);
+  free(Cj_tmp_array);
   return C;
 }
 
@@ -270,15 +275,18 @@ void update_bias(REAL *bias, REAL *Cj, REAL cthr, const long out_features)
  
     int displs[world_size];
     int rcounts[world_size];
-    int stride;
 
-    bcpnn::helpers::offsets::compute_offsets(out_features, world_rank, world_size, &stride, displs, rcounts);
+    bcpnn::helpers::offsets::compute_offsets(out_features, world_rank, world_size, displs, rcounts);
+
+    const size_t stride       = rcounts[world_rank];
+    const size_t offset_start = displs[world_rank];
+    const size_t offset_end   = offset_start + stride;
 
 #pragma omp parallel
 {
     //for (long i = 0; i < out_features; i++) {
 #pragma omp for
-    for (size_t i = displs[world_rank]; i < displs[world_rank] + rcounts[world_rank]; i++) {
+    for (size_t i = offset_start; i < offset_end; i++) {
         if (Cj[i] < cthr)
             bias[i] = std::log((REAL)2 * cthr);
         else
@@ -286,7 +294,7 @@ void update_bias(REAL *bias, REAL *Cj, REAL cthr, const long out_features)
     }
 } // end omp parallel
 
-    MPI_Allgatherv(MPI_IN_PLACE, rcounts[world_rank], datatype,
+    MPI_Allgatherv(MPI_IN_PLACE, stride, datatype,
                    bias, rcounts, displs,
                    datatype, MPI_COMM_WORLD);
 }
@@ -305,9 +313,12 @@ void update_bias_regularized(REAL *bias, REAL *kbi, REAL *Cj, REAL cthr, REAL kh
  
     int displs[world_size];
     int rcounts[world_size];
-    int stride;
 
-    bcpnn::helpers::offsets::compute_offsets(m, world_rank, world_size, &stride, displs, rcounts);
+    bcpnn::helpers::offsets::compute_offsets(m, world_rank, world_size, displs, rcounts);
+
+    const size_t stride       = rcounts[world_rank];
+    const size_t offset_start = displs[world_rank];
+    const size_t offset_end   = offset_start + stride;
 
     REAL pmin_div_four = pmin / (REAL)4;
     REAL k = (khalf - 1) * (pmin_div_four * pmin_div_four);
@@ -318,7 +329,7 @@ void update_bias_regularized(REAL *bias, REAL *kbi, REAL *Cj, REAL cthr, REAL kh
 {
     //for (long i = 0; i < m; i++) {
 #pragma omp for
-    for (size_t i = displs[world_rank]; i < displs[world_rank] + rcounts[world_rank]; i++) {
+    for (size_t i = offset_start; i < offset_end; i++) {
         pj = Cj[i];
         kb = 1 + k / ((pj - pmin_div_four) * (pj - pmin_div_four));
 
@@ -332,10 +343,10 @@ void update_bias_regularized(REAL *bias, REAL *kbi, REAL *Cj, REAL cthr, REAL kh
             bias[i] = kbi[i] * std::log(pj);
     }
 } // end omp parallel
-    MPI_Allgatherv(MPI_IN_PLACE, rcounts[world_rank], datatype,
+    MPI_Allgatherv(MPI_IN_PLACE, stride, datatype,
                    kbi, rcounts, displs,
                    datatype, MPI_COMM_WORLD);
-    MPI_Allgatherv(MPI_IN_PLACE, rcounts[world_rank], datatype,
+    MPI_Allgatherv(MPI_IN_PLACE, stride, datatype,
                    bias, rcounts, displs,
                    datatype, MPI_COMM_WORLD);
 }
@@ -357,19 +368,22 @@ void update_mask(uint8_t * wmask, REAL * weights,
  
     int displs[world_size];
     int rcounts[world_size];
-    int stride;
 
-    bcpnn::helpers::offsets::compute_offsets(n, world_rank, world_size, &stride, displs, rcounts);
+    bcpnn::helpers::offsets::compute_offsets(n, world_rank, world_size, displs, rcounts);
+
+    const size_t stride       = rcounts[world_rank];
+    const size_t offset_start = displs[world_rank];
+    const size_t offset_end   = offset_start + stride;
 
     REAL wmask_score_nominator[n] = {0.0};
     int wmask_csum[n] = {0};
     REAL wmask_score[n] = {0.0};
+    REAL *tmp_score = (REAL*)calloc(n, sizeof(REAL));
 
 #pragma omp parallel
 {
-    //for (size_t i = 0; i < n; i++) {
 #pragma omp for
-    for (size_t i = displs[world_rank]; i < displs[world_rank] + rcounts[world_rank]; i++) {
+    for (size_t i = offset_start; i < offset_end; i++) {
         REAL score = 0.0;
         for (size_t j = h * minicolumns; j < (h + 1) * minicolumns; j++) {
             if (Ci[i] >= cthr && Cj[j] >= cthr) {
@@ -387,17 +401,24 @@ void update_mask(uint8_t * wmask, REAL * weights,
         wmask_score_nominator[i] = score;
     }
 
-    //for (size_t i = 0; i < n; i++) {
-//        int sum = 0;
 #pragma omp for
-    for (size_t i = displs[world_rank]; i < displs[world_rank] + rcounts[world_rank]; i++) {
+    for (size_t i = offset_start; i < offset_end; i++) {
 #pragma omp simd
         for (size_t j = 0; j < hypercolumns; j++) {
             wmask_csum[i] += wmask[i * hypercolumns + j];
         }
-//        wmask_csum[i] = sum;
+    }
+
+#pragma omp for
+    for (size_t i = offset_start; i < offset_end; i++) {
+        tmp_score[i] = wmask_score_nominator[i] / (1.0 + (REAL)wmask_csum[i]);
     }
 } // end omp parallel
+
+    /* sync after update */
+    MPI_Allgatherv(MPI_IN_PLACE, rcounts[world_rank], datatype,
+                   tmp_score, rcounts, displs,
+                   datatype, MPI_COMM_WORLD);
 
     for (size_t i = 0; i < iterations; i++) {
         REAL vmax0 = 0.0;
@@ -406,7 +427,8 @@ void update_mask(uint8_t * wmask, REAL * weights,
         size_t imin1 = n;
 
         for (size_t j = 0; j < n; j++) {
-            REAL score = wmask_score_nominator[j] / (1.0 + (REAL)wmask_csum[j]);
+            //REAL score = wmask_score_nominator[j] / (1.0 + (REAL)wmask_csum[j]);
+            REAL score = tmp_score[j];
             if (wmask[j * hypercolumns + h] == 0 && (imax0 == n || score >= vmax0)) {
                 imax0 = j;
                 vmax0 = score;
@@ -426,6 +448,7 @@ void update_mask(uint8_t * wmask, REAL * weights,
         wmask_csum[imax0] += 1;
         wmask_csum[imin1] -= 1;
     }
+
 }
 
 template<typename REAL>
@@ -442,15 +465,17 @@ void apply_mask(REAL * weight, uint8_t * wmask, size_t n, size_t m, size_t hyper
  
     int displs[world_size];
     int rcounts[world_size];
-    int stride;
 
-    bcpnn::helpers::offsets::compute_offsets(n, world_rank, world_size, &stride, displs, rcounts);
+    bcpnn::helpers::offsets::compute_offsets(n, world_rank, world_size, displs, rcounts);
 
-    //for (size_t i = 0; i < n; i++) {
+    const size_t stride       = rcounts[world_rank];
+    const size_t offset_start = displs[world_rank];
+    const size_t offset_end   = offset_start + stride;
+
 #pragma omp parallel
 {
 #pragma omp for
-    for (size_t i = displs[world_rank]; i < displs[world_rank] + rcounts[world_rank]; i++) {
+    for (size_t i = offset_start; i < offset_end; i++) {
         for (size_t j = 0; j < m; j++) {
             size_t h = j / minicolumns;
 
