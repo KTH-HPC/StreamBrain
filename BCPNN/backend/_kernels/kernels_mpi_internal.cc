@@ -449,6 +449,7 @@ void update_mask(uint8_t * wmask, REAL * weights,
         wmask_csum[imin1] -= 1;
     }
 
+    free(tmp_score);
 }
 
 template<typename REAL>
