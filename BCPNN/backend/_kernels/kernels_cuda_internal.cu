@@ -478,7 +478,7 @@ kernel_update_wmask(REAL * wmask_score_nominator, int * wmask_csum, uint8_t * wm
       if (threadIdx.x == 0) {
         if (imax0 == n || imin1 == n || vmax0 < vmin1) { cntnue = 0; }
 	else {
-          printf("GPU: Swapping %ld (%f) with %ld (%f)\n", imax0, vmax0, imin1, vmin1);
+          //printf("GPU: Swapping %ld (%f) with %ld (%f)\n", imax0, vmax0, imin1, vmin1);
           swmask[imax0 * BANK_SIZE] = 1;
           swmask[imin1 * BANK_SIZE] = 0;
 
