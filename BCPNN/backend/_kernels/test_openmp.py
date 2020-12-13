@@ -124,10 +124,6 @@ def test_update_weights(k1, k2):
     diff = max(diff, np.absolute(Ci1  - Ci2).max())
     diff = max(diff, np.absolute(Cj1  - Cj2).max())
     diff = max(diff, np.absolute(Cij1  - Cij2).max())
-    print(np.absolute(weights1  - weights2).max())
-    print(np.absolute(Ci1  - Ci2).max())
-    print(np.absolute(Cj1  - Cj2).max())
-    print(np.absolute(Cij1  - Cij2).max())
 
     return diff, (Ci, Cj, Cij, weights, taupdt)
 
@@ -227,35 +223,21 @@ def test_apply_mask(k1, k2):
 def run_tests(k1, k2):
     iterations = 10;
 
-#    _max = 0
-#    for _ in range(iterations):
-#        diff, args = test_add_bias(_k1, _k2)
-#        _max = max(_max, diff)
-#    print("testing add_bias():", _max)
+    _max = 0
+    for _ in range(iterations):
+        diff, args = test_update_state(_k1, _k2)
+        _max = max(_max, diff)
+        if diff > 1e-3:
+            return diff, args
+    print("testing update_state():", _max)
 
-#    _max = 0
-#    for _ in range(iterations):
-#        diff, args = test_softmax_minicolumns(_k1, _k2)
-#        _max = max(_max, diff)
-#        if diff > 1e-3:
-#            return diff, args
-#    print("testing softmax_minicolumn():", _max)
-
-#    _max = 0
-#    for _ in range(iterations):
-#        diff, args = test_update_counters(_k1, _k2)
-#        _max = max(_max, diff)
-#        if diff > 1e-3:
-#            return diff, args
-#    print("testing update_counters():", _max)
-
-#    _max = 0
-#    for _ in range(iterations):
-#        diff, args = test_update_weights(_k1, _k2)
-#        _max = max(_max, diff)
-#        if diff > 1e-3:
-#            return diff, args
-#    print("testing update_weights():", _max)
+    _max = 0
+    for _ in range(iterations):
+        diff, args = test_update_weights(_k1, _k2)
+        _max = max(_max, diff)
+        if diff > 1e-3:
+            return diff, args
+    print("testing update_weights():", _max)
 
     _max = 0
     for _ in range(iterations):
@@ -289,9 +271,14 @@ def run_tests(k1, k2):
             return diff, args
     print("testing apply_mask():", _max)
 
+    print('success!')
+
+    return None, None
 
 if __name__ == "__main__":
     _k1 = kernels_openmp
     _k2 = kernels_numpy
 
-    run_tests(_k1, _k2)
+    diff, _ = run_tests(_k1, _k2)
+    if diff is not None:
+        print('faild!')
