@@ -55,7 +55,7 @@ class StructuralPlasticityLayer:
     _update_mask = None
     _apply_mask = None
 
-    def __init__(self, in_features, hypercolumns, minicolumns, taupdt, khalf, pmin, taubdt, initial_counters, dtype=np.float64):
+    def __init__(self, in_features, hypercolumns, minicolumns, taupdt, khalf, pmin, taubdt, density, mask_iterations, initial_counters, dtype=np.float64):
         self.in_features = in_features
         self.hypercolumns = hypercolumns
         self.minicolumns = minicolumns
@@ -65,6 +65,8 @@ class StructuralPlasticityLayer:
         self.khalf = khalf
         self.pmin = pmin
         self.taubdt = taubdt
+        self.density = density
+        self.mask_iterations = mask_iterations
 
         self.dtype = dtype
 
@@ -75,7 +77,7 @@ class StructuralPlasticityLayer:
         self.Cj = initial_counters[1] * np.ones([self.out_features]).astype(dtype)
         self.Cij = initial_counters[2] * np.ones([self.in_features, self.out_features]).astype(dtype)
         self.kbi = np.ones([self.out_features]).astype(dtype)
-        self.wmask = (np.random.rand(self.in_features, self.hypercolumns) < 0.1).astype(np.uint8)
+        self.wmask = (np.random.rand(self.in_features, self.hypercolumns) < self.density).astype(np.uint8)
 
     def compute_activation(self, inputs):
         activations = np.zeros([inputs.shape[0], self.out_features], dtype=self.dtype)
@@ -99,7 +101,7 @@ class StructuralPlasticityLayer:
         self.bias, self.kbi = self._update_bias(self.bias, self.kbi, self.Cj, self.taupdt/2, self.khalf, self.pmin, self.taubdt)
         if hypercolumn is not None:
             #print("Updating hypercolumn:", hypercolumn)
-            self.wmask = self._update_mask(self.wmask, self.weights, self.Ci, self.Cj, self.Cij, self.taupdt/2, self.hypercolumns, self.minicolumns, hypercolumn, 16)
+            self.wmask = self._update_mask(self.wmask, self.weights, self.Ci, self.Cj, self.Cij, self.taupdt/2, self.hypercolumns, self.minicolumns, hypercolumn, self.mask_iterations)
         self.weights = self._apply_mask(self.weights, self.wmask, self.hypercolumns, self.minicolumns)
 
     def train_finalize(self):

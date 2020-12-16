@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     #net = BCPNN.Network(np.float32)
     net = BCPNN.Network(np.float64)
-    net.add_layer(BCPNN.StructuralPlasticityLayer(n_inputs, n_hypercolumns, n_minicolumns, l1_taupdt, l1_khalf, l1_pmin, l1_taubdt, (1, 1/n_minicolumns, 1 * 1/n_minicolumns)))
+    net.add_layer(BCPNN.StructuralPlasticityLayer(n_inputs, n_hypercolumns, n_minicolumns, l1_taupdt, l1_khalf, l1_pmin, l1_taubdt, 0.1, 16, (1, 1/n_minicolumns, 1 * 1/n_minicolumns)))
     net.add_layer(BCPNN.DenseLayer(n_hidden, 1, n_outputs, l2_taupdt, (1/n_minicolumns, 1/10, 1/n_minicolumns * 1/10)))
 
     train_start = time.time()
