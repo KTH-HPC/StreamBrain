@@ -1,13 +1,16 @@
 cmake_minimum_required(VERSION 3.10)
 project(BCPNN CXX)
-set(CMAKE_BUILD_TYPE "Debug")
+
+if (NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Debug")
+endif()
 
 if (POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW)
 endif()
 
 add_subdirectory(pybind11)
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
+#set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
 
 if(NOT BLA_VENDOR)
   set(BLA_VENDOR All)
@@ -18,6 +21,8 @@ if(NOT ARCH)
 else()
   set(ARCH "-march=${ARCH}")
 endif()
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math")
 
 if(NOT BUILD_SHARED_LIBS)
   set(BUILD_SHARED_LIBS ON)
@@ -60,7 +65,7 @@ if(CUDA_FOUND)
   )
   #set_property(TARGET _bcpnn_kernels_cuda_internal PROPERTY CUDA_ARCHITECTURES 60 61 70 75)
   target_compile_options(_bcpnn_kernels_cuda_internal PRIVATE
-    "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75>"
+    "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Xcompiler -ffast-math -gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75>"
   )
   target_link_libraries(_bcpnn_kernels_cuda_internal PRIVATE curand cublas)
   
@@ -73,9 +78,7 @@ if(CUDA_FOUND)
   )
   #set_property(TARGET _bcpnn_backend_full_cuda_internals PROPERTY CUDA_ARCHITECTURES 60 61 70 75)
   target_compile_options(_bcpnn_backend_full_cuda_internals PRIVATE
-    "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75>"
+    "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Xcompiler -ffast-math -gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75>"
   )
   target_link_libraries(_bcpnn_backend_full_cuda_internals PRIVATE curand cublas)
 endif()
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ffast-math")
