@@ -1,9 +1,8 @@
-#include "mkl_service.h"
 #include <iostream>
 #include <memory>
 #include <omp.h>
 #include <math.h>
-#include <mkl.h>
+#include <cblas.h>
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 

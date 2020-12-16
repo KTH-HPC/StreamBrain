@@ -23,14 +23,14 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 find_package(OpenMP)
-find_package(MKL)
+find_package(BLAS)
 
-if(OpenMP_CXX_FOUND AND MKL_FOUND)
+if(OpenMP_CXX_FOUND AND BLAS_FOUND)
   pybind11_add_module(_bcpnn_kernels_openmp_internal BCPNN/backend/_kernels/kernels_openmp_internal.cc)
   target_include_directories(_bcpnn_kernels_openmp_internal PRIVATE
-    ${MKL_INCLUDE_DIRS})
+    ${BLAS_INCLUDE_DIRS})
   target_link_libraries(_bcpnn_kernels_openmp_internal PRIVATE
-    ${MKL_LIBRARIES}
+    ${BLAS_LIBRARIES}
     OpenMP::OpenMP_CXX)
   target_compile_options(_bcpnn_kernels_openmp_internal PUBLIC "-O3")
   target_compile_options(_bcpnn_kernels_openmp_internal PUBLIC "${ARCH}")
