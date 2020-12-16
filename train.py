@@ -1,5 +1,6 @@
 import numpy as np
 import BCPNN
+import math
 import time
 
 def load_mnist(image_file, label_file, dtype=np.float64):
@@ -32,23 +33,40 @@ if __name__ == "__main__":
     testing_images, testing_labels = load_mnist("t10k-images-idx3-ubyte", "t10k-labels-idx1-ubyte")
 
     n_inputs = 28*28
-    n_hypercolumns = 30
-    n_minicolumns = 100
+
+    l1_epochs = 30
+    l2_epochs = 60
+
+    dataset = "mnist"
+    if dataset == "mnist":
+      n_hypercolumns = 15
+      l1_taupdt = 0.006908854922437549
+      l1_pmin = 0.06195283356566607
+      l1_khalf = -139.02586632856327
+      l1_taubdt = 0.02218100432360414
+      l2_taupdt = 0.0007449780036161324
+    elif dataset == "fashion_mnist":
+      n_hypercolumns = 30
+      l1_taupdt = 0.0014712266428529468
+      l1_pmin = 0.10328182984859212
+      l1_khalf = -160.06386313883948
+      l1_taubdt = 0.0008418555122620076
+      l2_taupdt = 0.00202951854188782
+    else:
+      print("Unknown dataset")
+      sys.exit(1)
+
+    l1_taupdt *= math.sqrt(batch_size / 128)
+    l2_taupdt *= math.sqrt(batch_size / 128)
+
+    n_minicolumns = 3000 // n_hypercolumns
     n_hidden = n_hypercolumns * n_minicolumns
     n_outputs = 10
 
-    taupdt = 0.002996755526968425
-    l1_epochs = 15 #23
-    l2_epochs = 25 #298
-
-    l1_pmin = 0.3496214817513042
-    l1_khalf = -435.08426155834593
-    l1_taubdt = 0.27826430798917945
-
     #net = BCPNN.Network(np.float32)
     net = BCPNN.Network(np.float64)
-    net.add_layer(BCPNN.StructuralPlasticityLayer(n_inputs, n_hypercolumns, n_minicolumns, taupdt, l1_khalf, l1_pmin, l1_taubdt, (1, 1/n_minicolumns, 1 * 1/n_minicolumns)))
-    net.add_layer(BCPNN.DenseLayer(n_hidden, 1, n_outputs, taupdt, (1/n_minicolumns, 1/10, 1/n_minicolumns * 1/10)))
+    net.add_layer(BCPNN.StructuralPlasticityLayer(n_inputs, n_hypercolumns, n_minicolumns, l1_taupdt, l1_khalf, l1_pmin, l1_taubdt, (1, 1/n_minicolumns, 1 * 1/n_minicolumns)))
+    net.add_layer(BCPNN.DenseLayer(n_hidden, 1, n_outputs, l2_taupdt, (1/n_minicolumns, 1/10, 1/n_minicolumns * 1/10)))
 
     train_start = time.time()
     net.fit(training_images, training_labels, batch_size, [(0, l1_epochs), (1, l2_epochs)])
