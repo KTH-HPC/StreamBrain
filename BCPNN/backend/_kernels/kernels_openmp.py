@@ -38,16 +38,6 @@ def update_bias_regularized(bias, kbi, Cj, cthr, khalf, pmin, taubdt):
         raise Exception("Invalid dtype")
     return bias, kbi
 
-def softmax_minicolumns(a, hypercolumns, minicolumns):
-    #a = a.copy()
-    if a.dtype == np.float32:
-        _i.softmax_minicolumns_float32(a, hypercolumns, minicolumns)
-    elif a.dtype == np.float64:
-        _i.softmax_minicolumns_float64(a, hypercolumns, minicolumns)
-    else:
-        raise Exception("Invalid dtype")
-    return a
-
 def update_mask(wmask, weights, Ci, Cj, Cij, cthr, hypercolumns, minicolumns, h, iterations):
     #wmask = wmask.copy(); weights = weights.copy(); Ci = Ci.copy(); Cj = Cj.copy(); Cij = Cij.copy()
     if weights.dtype == np.float32:
