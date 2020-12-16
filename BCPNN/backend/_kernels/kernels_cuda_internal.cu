@@ -885,6 +885,7 @@ void
 initialize()
 {
   CUBLAS_CALL(cublasCreate(&global_cublas_handle));
+  CUBLAS_CALL(cublasSetMathMode(global_cublas_handle, CUBLAS_TENSOR_OP_MATH));
 }
 
 PYBIND11_MODULE(_bcpnn_kernels_cuda_internal, m)
