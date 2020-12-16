@@ -57,32 +57,7 @@ void compute_offsets(size_t size, int world_rank, int world_size, int *displs, i
 
 } // namespace offsets
 
-namespace blas {
-
-template <typename REAL>
-void matmul(REAL *activation, REAL *inputs, REAL *weights, const long inputs_rows, const long inputs_cols, const long weights_cols)
-{ }
-
-template<>
-void matmul<double>(double *activation, double *inputs, double *weights, const long inputs_rows, const long inputs_cols, const long weights_cols)
-{
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
-                inputs_rows, weights_cols, inputs_cols,
-                1.0, inputs, inputs_cols, weights, weights_cols,
-                0.0, activation, weights_cols);
-}
-
-template<>
-void matmul<float>(float *activation, float *inputs, float *weights, const long inputs_rows, const long inputs_cols, const long weights_cols)
-{
-    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
-                inputs_rows, weights_cols, inputs_cols,
-                1.0, inputs, inputs_cols, weights, weights_cols,
-                0.0, activation, weights_cols);
-}
-
 } // end namespace helpers
-} // end namespace blas
 
 namespace kernels {
 
@@ -111,11 +86,13 @@ REAL updateWeights(REAL C, REAL *Ci, REAL *Cj, REAL *Cij,
     C = std::max((REAL)0.0, C);
     
     REAL one_minus_taupdt = (1.0 - taupdt);
+    REAL cthr_pow_four    = cthr * cthr * cthr * cthr;
+
     REAL *tmp_array = (REAL*)malloc(sizeof(REAL) * in_features * out_features);
     REAL *Ci_tmp_array = (REAL*)malloc(sizeof(REAL) * in_features);
     REAL *Cj_tmp_array = (REAL*)malloc(sizeof(REAL) * out_features);
 
-#pragma omp parallel firstprivate(one_minus_taupdt,C)
+#pragma omp parallel firstprivate(one_minus_taupdt,C,cthr_pow_four)
 {
 #pragma omp for nowait
     for (size_t j = 0; j < in_features; j+=BS) {
@@ -133,7 +110,7 @@ REAL updateWeights(REAL C, REAL *Ci, REAL *Cj, REAL *Cij,
             Ci_tmp_array[ij] = tmp[ij-j];
     }
 
-#pragma omp for schedule(static)
+#pragma omp for nowait schedule(static)
     for (size_t j = 0; j < out_features; j+=BS) {
         VECTOR tmp = {0.0};
         for (size_t i = 0; i < batch_size; i++) {
@@ -148,10 +125,33 @@ REAL updateWeights(REAL C, REAL *Ci, REAL *Cj, REAL *Cij,
             Cj_tmp_array[ij] = tmp[ij-j];
     }
 
+#pragma omp for schedule(static)
+    for (size_t i = 0; i < in_features; i++) {
+        for (size_t j = 0; j < out_features; j+=BS) {
+            VECTOR tmp = {0.0};
+
+            for (size_t batch = 0; batch < batch_size; batch++) {
+                REAL a_i_pl = a_i[batch * in_features + i];
+                VECTOR a_o_pl;
+
+                #pragma unroll
+                for (size_t vl = j; vl < MIN(out_features,j+BS); vl++)
+                    a_o_pl[vl-j] = a_o[batch * out_features + vl];
+
+                tmp += (a_i_pl * a_o_pl);
+            }
+
+            #pragma unroll
+            for (size_t vl = j; vl < MIN(out_features,j+BS); vl++)
+                tmp_array[i * out_features + vl] = tmp[vl-j];
+        }
+    }
+
 #pragma omp single
     {
         MPI_Allreduce(MPI_IN_PLACE, Ci_tmp_array, in_features, datatype, MPI_SUM, MPI_COMM_WORLD);
         MPI_Allreduce(MPI_IN_PLACE, Cj_tmp_array, out_features, datatype, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, tmp_array, in_features * out_features, datatype, MPI_SUM, MPI_COMM_WORLD);
     }
 
 #pragma omp for nowait schedule(static)
@@ -174,7 +174,7 @@ REAL updateWeights(REAL C, REAL *Ci, REAL *Cj, REAL *Cij,
       }
 //Ci[i] = one_minus_taupdt * Ci[i] + (tmp_array[i] / (REAL)(batch_size * world_size) * taupdt);
 
-#pragma omp for nowait schedule(static)
+#pragma omp for schedule(static)
     for (size_t j = 0; j < out_features; j+=BS) {
 	register VECTOR C_p;
 	register VECTOR tmp;
@@ -189,38 +189,13 @@ REAL updateWeights(REAL C, REAL *Ci, REAL *Cj, REAL *Cij,
         tmp *= taupdt;
         C_p *= one_minus_taupdt;
         C_p += tmp;
-         
+
         #pragma unroll
         for (size_t ij = j; ij < MIN(out_features,j+BS); ij++)
             Cj[ij] = std::max((REAL)0.0, C_p[ij-j]);
     }
 
 //Cj[i] = one_minus_taupdt * Cj[i] + (tmp_array[i] / (REAL)(batch_size * world_size) * taupdt);
-
-#pragma omp for schedule(static)
-    for (size_t i = 0; i < in_features; i++) {
-        for (size_t j = 0; j < out_features; j+=BS) {
-            VECTOR tmp = {0.0};
-            
-            for (size_t batch = 0; batch < batch_size; batch++) {
-                REAL a_i_pl = a_i[batch * in_features + i];
-                VECTOR a_o_pl;
-                
-                #pragma unroll
-                for (size_t vl = j; vl < MIN(out_features,j+BS); vl++)
-                    a_o_pl[vl-j] = a_o[batch * out_features + vl];
-                
-                tmp += (a_i_pl * a_o_pl);
-            }
-
-            #pragma unroll
-            for (size_t vl = j; vl < MIN(out_features,j+BS); vl++)
-                tmp_array[i * out_features + vl] = tmp[vl-j];
-        }
-    }
-
-#pragma omp single
-    MPI_Allreduce(MPI_IN_PLACE, tmp_array, in_features * out_features, datatype, MPI_SUM, MPI_COMM_WORLD);
 
 #pragma omp for schedule(static)
     for (size_t i = 0; i < in_features; i++) {
@@ -249,7 +224,7 @@ REAL updateWeights(REAL C, REAL *Ci, REAL *Cj, REAL *Cij,
             if (!skip_weight)
                 #pragma unroll
                 for (size_t vl = j; vl < MIN(out_features,j+BS); vl++)
-                    weights[i * out_features + vl] = (Cj[vl] < cthr) ? 0.0 : std::log(std::max(Cij[i * out_features + vl], cthr * cthr * cthr * cthr) / (Ci[i] * Cj[vl]));
+                    weights[i * out_features + vl] = (Cj[vl] < cthr) ? 0.0 : std::log(std::max(Cij[i * out_features + vl], cthr_pow_four) / (Ci[i] * Cj[vl]));
                     //weights[i * out_features + vl] = (Cj[vl] < cthr) ? 0.0 : std::log((C * C_p[vl-j]) / (Ci[i] * Cj[vl]));
         }
     }
@@ -375,9 +350,8 @@ void update_mask(uint8_t * wmask, REAL * weights,
     const size_t offset_start = displs[world_rank];
     const size_t offset_end   = offset_start + stride;
 
-    REAL wmask_score_nominator[n] = {0.0};
-    int wmask_csum[n] = {0};
-    REAL wmask_score[n] = {0.0};
+    REAL *wmask_score_nominator = (REAL*)calloc(n, sizeof(REAL));
+    int  *wmask_csum = (int*)calloc(n, sizeof(int));;
     REAL *tmp_score = (REAL*)calloc(n, sizeof(REAL));
 
 #pragma omp parallel
@@ -449,7 +423,7 @@ void update_mask(uint8_t * wmask, REAL * weights,
         wmask_csum[imin1] -= 1;
     }
 
-    free(tmp_score);
+    free(wmask_csum); free(wmask_score_nominator); free(tmp_score);
 }
 
 template<typename REAL>
