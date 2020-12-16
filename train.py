@@ -25,14 +25,18 @@ if __name__ == "__main__":
     import sys
     from mpi4py import MPI
 
-    if len(sys.argv) != 2:
-        print("Usage: python", sys.argv[0], "<batch size>")
+    if len(sys.argv) != 3:
+        print("Usage: python", sys.argv[0], "<single/double> <batch size>")
         sys.exit(1)
 
     world_rank = MPI.COMM_WORLD.Get_rank()
 
-    batch_size = int(sys.argv[1])
-    precision = np.float32
+    if sys.argv[1] == "single":
+        precision = np.float32
+    else:
+        precision = np.float64
+    batch_size = int(sys.argv[2])
+    print('Batch size:', batch_size, 'precision:', precision)
 
     training_images, training_labels = load_mnist("train-images-idx3-ubyte", "train-labels-idx1-ubyte", dtype=precision)
     testing_images, testing_labels = load_mnist("t10k-images-idx3-ubyte", "t10k-labels-idx1-ubyte", dtype=precision)
