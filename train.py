@@ -81,10 +81,15 @@ if __name__ == "__main__":
     net.fit(training_images, training_labels, batch_size, [(0, l1_epochs), (1, l2_epochs)])
     train_stop = time.time()
 
-    test_start = time.time()
-    correct, total = net.evaluate(testing_images, testing_labels, batch_size)
-    test_stop = time.time()
-    accuracy = correct / total
+    if os.environ['BCPNN_BACKEND'] == 'full_cuda':
+        test_start = time.time()
+        accuracy = net.evaluate(testing_images, testing_labels, batch_size)
+        test_stop = time.time()
+    else:
+        test_start = time.time()
+        correct, total = net.evaluate(testing_images, testing_labels, batch_size)
+        test_stop = time.time()
+        accuracy = correct / total
 
     if world_rank == 0:
         print('Training duration: '+str(train_stop-train_start))
