@@ -5,7 +5,10 @@
 #include <cblas.h>
 #include <mpi.h>
 
+#ifndef VEC_LENGTH
 #define VEC_LENGTH 64
+#endif
+
 #define MIN(a,b) (((a)<(b))?(a):(b))
 
 #include <pybind11/pybind11.h>
