@@ -1,9 +1,8 @@
-#include "mkl_service.h"
 #include <iostream>
 #include <memory>
 #include <omp.h>
 #include <math.h>
-#include <mkl.h>
+#include <cblas.h>
 
 #ifndef VEC_LENGTH
 #define VEC_LENGTH 64
@@ -250,9 +249,9 @@ void update_mask(uint8_t * wmask, REAL * weights,
                  REAL cthr, size_t n, size_t m, size_t h,
                  size_t hypercolumns, size_t minicolumns, size_t iterations)
 {
-    REAL wmask_score_nominator[n] = {0.0};
-    int wmask_csum[n] = {0};
-    REAL wmask_score[n] = {0.0};
+    REAL *wmask_score_nominator = (REAL*)calloc(n, sizeof(REAL));
+    int  *wmask_csum = (int*)calloc(n, sizeof(int));
+    REAL *wmask_score = (REAL*)calloc(n, sizeof(REAL));
 
 #pragma omp parallel
 {
@@ -313,6 +312,8 @@ void update_mask(uint8_t * wmask, REAL * weights,
         wmask_csum[imax0] += 1;
         wmask_csum[imin1] -= 1;
     }
+
+    free(wmask_csum); free(wmask_score); free(wmask_score_nominator);
 }
 
 template<typename REAL>
