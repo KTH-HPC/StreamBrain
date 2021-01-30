@@ -2,7 +2,7 @@
 #include <memory>
 #include <omp.h>
 #include <math.h>
-#include <cblas.h>
+#include <mkl.h> // #include <cblas.h>
 
 #ifndef VEC_LENGTH
 #define VEC_LENGTH 64
