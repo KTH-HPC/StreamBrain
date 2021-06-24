@@ -91,7 +91,7 @@ Accuracy:          [0.9518]
 The MNIST training with the provided hyperparameters should give approximately 95% test accuracy, whereas the Fashion MNIST should give approximately 74% test accuracy.
 
 # Cite us
-If you find our work useful, we would appreciate it that you cite us with the following:
+If you find our work useful, we would appreciate that you cite us:
 ```bibtex
 @article{podobas2021streambrain,
   title={StreamBrain: An HPC Framework for Brain-like Neural Networks on CPUs, GPUs and FPGAs},
@@ -100,9 +100,7 @@ If you find our work useful, we would appreciate it that you cite us with the fo
   year={2021}
 }
 ```
-StreamBrain was published at the International Symposium on Highly Efficient Accelerators and Reconfigurable Technologies (HEART 2021).
+StreamBrain is published at the International Symposium on Highly Efficient Accelerators and Reconfigurable Technologies (HEART 2021).
 
 # License
 StreamBrain is developed by Martin Svedi, Artur Podobas, and Steven W. D. Chien, and Stefano Markidis. The software is released under the BSD 2-Clause license. See LICENSE for details.
-
-
