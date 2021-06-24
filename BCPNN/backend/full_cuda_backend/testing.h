@@ -8,4 +8,3 @@ float test_update_bias();
 float test_update_bias_regularized();
 float test_update_mask();
 float test_apply_mask();
-

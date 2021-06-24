@@ -1,6 +1,5 @@
 
 
-
 #if 0
 
 size_t batch_size = 0;

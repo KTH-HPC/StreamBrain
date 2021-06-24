@@ -5,17 +5,14 @@
 #include "kernels_cuda.h"
 #include "kernels_naive_cpu.h"
 
-
 using REAL = float;
 
 using namespace bcpnn::kernels::cuda;
 using namespace bcpnn::kernels::naive_cpu;
 
-float
-test_add_bias()
-{
+float test_add_bias() {
   std::default_random_engine generator;
-  std::uniform_int_distribution<int> d_size(1,1024);
+  std::uniform_int_distribution<int> d_size(1, 1024);
   std::uniform_real_distribution<float> d_entry(0, 1);
 
   bcpnn::helpers::random::seed_generator(generator);
@@ -23,8 +20,8 @@ test_add_bias()
   size_t n = d_size(generator);
   size_t m = d_size(generator);
 
-  float * matrix = (float *)malloc(n * m * sizeof(float));
-  float * bias = (float *)malloc(m * sizeof(float));
+  float *matrix = (float *)malloc(n * m * sizeof(float));
+  float *bias = (float *)malloc(m * sizeof(float));
 
   for (size_t i = 0; i < n; ++i) {
     for (size_t j = 0; j < m; ++j) {
@@ -36,25 +33,29 @@ test_add_bias()
     bias[j] = d_entry(generator);
   }
 
-  float * d_matrix;
-  float * d_bias;
+  float *d_matrix;
+  float *d_bias;
 
   CUDA_CALL(cudaMalloc((void **)&d_matrix, n * m * sizeof(float)));
   CUDA_CALL(cudaMalloc((void **)&d_bias, m * sizeof(float)));
 
-  CUDA_CALL(cudaMemcpy(d_matrix, matrix, n * m * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(d_bias, bias, m * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(d_matrix, matrix, n * m * sizeof(float),
+                       cudaMemcpyHostToDevice));
+  CUDA_CALL(
+      cudaMemcpy(d_bias, bias, m * sizeof(float), cudaMemcpyHostToDevice));
 
   naive_add_bias<REAL>(matrix, n, m, bias);
   cuda_add_bias<REAL>(d_matrix, n, m, d_bias);
 
-  float * h_matrix = (float *)malloc(n * m * sizeof(float));
-  float * h_bias = (float *)malloc(m * sizeof(float));
+  float *h_matrix = (float *)malloc(n * m * sizeof(float));
+  float *h_bias = (float *)malloc(m * sizeof(float));
 
-  CUDA_CALL(cudaMemcpy(h_matrix, d_matrix, n * m * sizeof(float), cudaMemcpyDeviceToHost));
-  CUDA_CALL(cudaMemcpy(h_bias, d_bias, m * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(h_matrix, d_matrix, n * m * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+  CUDA_CALL(
+      cudaMemcpy(h_bias, d_bias, m * sizeof(float), cudaMemcpyDeviceToHost));
 
-  float delta_max = 0; 
+  float delta_max = 0;
   for (size_t i = 0; i < n; ++i) {
     for (size_t j = 0; j < m; ++j) {
       size_t idx = i * m + j;
@@ -74,20 +75,18 @@ test_add_bias()
   return delta_max;
 }
 
-float
-test_softmax()
-{
+float test_softmax() {
   std::default_random_engine generator;
-  std::uniform_int_distribution<int> d_size(1,1024);
+  std::uniform_int_distribution<int> d_size(1, 1024);
   std::uniform_real_distribution<float> d_entry(-100, 100);
 
   bcpnn::helpers::random::seed_generator(generator);
 
   size_t n = d_size(generator);
   size_t m = d_size(generator);
-  //std::cout << "Size: " << n << ", " << m << std::endl;
+  // std::cout << "Size: " << n << ", " << m << std::endl;
 
-  float * matrix = (float *)malloc(n * m * sizeof(float));
+  float *matrix = (float *)malloc(n * m * sizeof(float));
 
   for (size_t i = 0; i < n; ++i) {
     for (size_t j = 0; j < m; ++j) {
@@ -102,20 +101,22 @@ test_softmax()
 #endif
   }
 
-  float * d_matrix;
+  float *d_matrix;
 
   CUDA_CALL(cudaMalloc((void **)&d_matrix, n * m * sizeof(float)));
 
-  CUDA_CALL(cudaMemcpy(d_matrix, matrix, n * m * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(d_matrix, matrix, n * m * sizeof(float),
+                       cudaMemcpyHostToDevice));
 
   naive_softmax<REAL>(matrix, n, m);
   cuda_softmax<REAL>(d_matrix, n, m);
 
-  float * h_matrix = (float *)malloc(n * m * sizeof(float));
+  float *h_matrix = (float *)malloc(n * m * sizeof(float));
 
-  CUDA_CALL(cudaMemcpy(h_matrix, d_matrix, n * m * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(h_matrix, d_matrix, n * m * sizeof(float),
+                       cudaMemcpyDeviceToHost));
 
-  float delta_max = 0; 
+  float delta_max = 0;
   for (size_t i = 0; i < n; ++i) {
     for (size_t j = 0; j < m; ++j) {
       size_t idx = i * m + j;
@@ -153,12 +154,9 @@ test_softmax()
   return delta_max;
 }
 
-
-float
-test_update_counters()
-{
+float test_update_counters() {
   std::default_random_engine generator;
-  std::uniform_int_distribution<int> d_size(1,1024);
+  std::uniform_int_distribution<int> d_size(1, 1024);
   std::uniform_real_distribution<float> d_entry(0.001, 1);
   std::uniform_int_distribution<int> d_zero(0, 9);
   std::uniform_int_distribution<int> d_taupdt(1e-7, 0.1);
@@ -169,13 +167,13 @@ test_update_counters()
   size_t m = d_size(generator);
   size_t batch_size = d_size(generator);
   float taupdt = d_taupdt(generator);
-  //std::cout << "Size: " << n << ", " << m << std::endl;
+  // std::cout << "Size: " << n << ", " << m << std::endl;
 
-  float * Ci = (float *)malloc(n * sizeof(float));
-  float * Cj = (float *)malloc(m * sizeof(float));
-  float * Cij = (float *)malloc(n * m * sizeof(float));
-  float * inputs = (float *)malloc(batch_size * n * sizeof(float));
-  float * outputs = (float *)malloc(batch_size * m * sizeof(float));
+  float *Ci = (float *)malloc(n * sizeof(float));
+  float *Cj = (float *)malloc(m * sizeof(float));
+  float *Cij = (float *)malloc(n * m * sizeof(float));
+  float *inputs = (float *)malloc(batch_size * n * sizeof(float));
+  float *outputs = (float *)malloc(batch_size * m * sizeof(float));
 
   for (size_t i = 0; i < n; ++i) {
     if (d_zero(generator) == 0) {
@@ -213,11 +211,11 @@ test_update_counters()
     }
   }
 
-  float * d_Ci;
-  float * d_Cj;
-  float * d_Cij;
-  float * d_inputs;
-  float * d_outputs;
+  float *d_Ci;
+  float *d_Cj;
+  float *d_Cij;
+  float *d_inputs;
+  float *d_outputs;
 
   CUDA_CALL(cudaMalloc((void **)&d_Ci, n * sizeof(float)));
   CUDA_CALL(cudaMalloc((void **)&d_Cj, m * sizeof(float)));
@@ -227,26 +225,34 @@ test_update_counters()
 
   CUDA_CALL(cudaMemcpy(d_Ci, Ci, n * sizeof(float), cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(d_Cj, Cj, m * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(d_Cij, Cij, n * m * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(d_inputs, inputs, batch_size * n * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(d_outputs, outputs, batch_size * m * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(
+      cudaMemcpy(d_Cij, Cij, n * m * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(d_inputs, inputs, batch_size * n * sizeof(float),
+                       cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(d_outputs, outputs, batch_size * m * sizeof(float),
+                       cudaMemcpyHostToDevice));
 
-  naive_update_counters<REAL>(Ci, Cj, Cij, inputs, outputs, batch_size, n, m, taupdt);
-  cuda_update_counters<REAL>(d_Ci, d_Cj, d_Cij, d_inputs, d_outputs, batch_size, n, m, taupdt);
+  naive_update_counters<REAL>(Ci, Cj, Cij, inputs, outputs, batch_size, n, m,
+                              taupdt);
+  cuda_update_counters<REAL>(d_Ci, d_Cj, d_Cij, d_inputs, d_outputs, batch_size,
+                             n, m, taupdt);
 
-  float * h_Ci = (float *)malloc(n * sizeof(float));
-  float * h_Cj = (float *)malloc(m * sizeof(float));
-  float * h_Cij = (float *)malloc(n * m * sizeof(float));
-  float * h_inputs = (float *)malloc(batch_size * n * sizeof(float));
-  float * h_outputs = (float *)malloc(batch_size * m * sizeof(float));
+  float *h_Ci = (float *)malloc(n * sizeof(float));
+  float *h_Cj = (float *)malloc(m * sizeof(float));
+  float *h_Cij = (float *)malloc(n * m * sizeof(float));
+  float *h_inputs = (float *)malloc(batch_size * n * sizeof(float));
+  float *h_outputs = (float *)malloc(batch_size * m * sizeof(float));
 
   CUDA_CALL(cudaMemcpy(h_Ci, d_Ci, n * sizeof(float), cudaMemcpyDeviceToHost));
   CUDA_CALL(cudaMemcpy(h_Cj, d_Cj, m * sizeof(float), cudaMemcpyDeviceToHost));
-  CUDA_CALL(cudaMemcpy(h_Cij, d_Cij, n * m * sizeof(float), cudaMemcpyDeviceToHost));
-  CUDA_CALL(cudaMemcpy(h_inputs, d_inputs, batch_size * n * sizeof(float), cudaMemcpyDeviceToHost));
-  CUDA_CALL(cudaMemcpy(h_outputs, d_outputs, batch_size * m * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(
+      cudaMemcpy(h_Cij, d_Cij, n * m * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(h_inputs, d_inputs, batch_size * n * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(h_outputs, d_outputs, batch_size * m * sizeof(float),
+                       cudaMemcpyDeviceToHost));
 
-  float delta_max = 0; 
+  float delta_max = 0;
   for (size_t i = 0; i < n; ++i) {
     delta_max = fmaxf(delta_max, fabsf(Ci[i] - h_Ci[i]));
   }
@@ -316,12 +322,9 @@ test_update_counters()
   return delta_max;
 }
 
-
-float
-test_update_weights()
-{
+float test_update_weights() {
   std::default_random_engine generator;
-  std::uniform_int_distribution<int> d_size(1,1024);
+  std::uniform_int_distribution<int> d_size(1, 1024);
   std::uniform_real_distribution<float> d_entry(0.001, 1);
   std::uniform_int_distribution<int> d_zero(0, 9);
   std::uniform_int_distribution<int> d_taupdt(1e-3, 0.1);
@@ -330,13 +333,13 @@ test_update_weights()
 
   size_t n = d_size(generator);
   size_t m = d_size(generator);
-  float cthr = d_taupdt(generator)/2;
-  //std::cout << "Size: " << n << ", " << m << std::endl;
+  float cthr = d_taupdt(generator) / 2;
+  // std::cout << "Size: " << n << ", " << m << std::endl;
 
-  float * weights = (float *)malloc(n * m * sizeof(float));
-  float * Ci = (float *)malloc(n * sizeof(float));
-  float * Cj = (float *)malloc(m * sizeof(float));
-  float * Cij = (float *)malloc(n * m * sizeof(float));
+  float *weights = (float *)malloc(n * m * sizeof(float));
+  float *Ci = (float *)malloc(n * sizeof(float));
+  float *Cj = (float *)malloc(m * sizeof(float));
+  float *Cij = (float *)malloc(n * m * sizeof(float));
 
   for (size_t i = 0; i < n; ++i) {
     if (d_zero(generator) == 0) {
@@ -364,10 +367,10 @@ test_update_weights()
     }
   }
 
-  float * d_weights;
-  float * d_Ci;
-  float * d_Cj;
-  float * d_Cij;
+  float *d_weights;
+  float *d_Ci;
+  float *d_Cj;
+  float *d_Cij;
 
   CUDA_CALL(cudaMalloc((void **)&d_weights, n * m * sizeof(float)));
   CUDA_CALL(cudaMalloc((void **)&d_Ci, n * sizeof(float)));
@@ -376,16 +379,18 @@ test_update_weights()
 
   CUDA_CALL(cudaMemcpy(d_Ci, Ci, n * sizeof(float), cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(d_Cj, Cj, m * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(d_Cij, Cij, n * m * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(
+      cudaMemcpy(d_Cij, Cij, n * m * sizeof(float), cudaMemcpyHostToDevice));
 
   naive_update_weights<REAL>(weights, Ci, Cj, Cij, cthr, n, m);
   cuda_update_weights<REAL>(d_weights, d_Ci, d_Cj, d_Cij, cthr, n, m);
 
-  float * h_weights = (float *)malloc(n * m * sizeof(float));
+  float *h_weights = (float *)malloc(n * m * sizeof(float));
 
-  CUDA_CALL(cudaMemcpy(h_weights, d_weights, n * m * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(h_weights, d_weights, n * m * sizeof(float),
+                       cudaMemcpyDeviceToHost));
 
-  float delta_max = 0; 
+  float delta_max = 0;
   for (size_t i = 0; i < n; ++i) {
     for (size_t j = 0; j < m; ++j) {
       size_t idx = i * m + j;
@@ -429,13 +434,9 @@ test_update_weights()
   return delta_max;
 }
 
-
-
-float
-test_update_bias()
-{
+float test_update_bias() {
   std::default_random_engine generator;
-  std::uniform_int_distribution<int> d_size(1,1024);
+  std::uniform_int_distribution<int> d_size(1, 1024);
   std::uniform_real_distribution<float> d_entry(0.001, 1);
   std::uniform_int_distribution<int> d_zero(0, 9);
   std::uniform_int_distribution<int> d_taupdt(1e-3, 0.1);
@@ -443,11 +444,11 @@ test_update_bias()
   bcpnn::helpers::random::seed_generator(generator);
 
   size_t m = d_size(generator);
-  float cthr = d_taupdt(generator)/2;
-  //std::cout << "Size: " << n << ", " << m << std::endl;
+  float cthr = d_taupdt(generator) / 2;
+  // std::cout << "Size: " << n << ", " << m << std::endl;
 
-  float * bias = (float *)malloc(m * sizeof(float));
-  float * Cj = (float *)malloc(m * sizeof(float));
+  float *bias = (float *)malloc(m * sizeof(float));
+  float *Cj = (float *)malloc(m * sizeof(float));
 
   for (size_t j = 0; j < m; ++j) {
     if (d_zero(generator) == 0) {
@@ -457,8 +458,8 @@ test_update_bias()
     }
   }
 
-  float * d_bias;
-  float * d_Cj;
+  float *d_bias;
+  float *d_Cj;
 
   CUDA_CALL(cudaMalloc((void **)&d_bias, m * sizeof(float)));
   CUDA_CALL(cudaMalloc((void **)&d_Cj, m * sizeof(float)));
@@ -468,11 +469,12 @@ test_update_bias()
   naive_update_bias<REAL>(bias, Cj, cthr, m);
   cuda_update_bias<REAL>(d_bias, d_Cj, cthr, m);
 
-  float * h_bias = (float *)malloc(m * sizeof(float));
+  float *h_bias = (float *)malloc(m * sizeof(float));
 
-  CUDA_CALL(cudaMemcpy(h_bias, d_bias, m * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(
+      cudaMemcpy(h_bias, d_bias, m * sizeof(float), cudaMemcpyDeviceToHost));
 
-  float delta_max = 0; 
+  float delta_max = 0;
   for (size_t j = 0; j < m; ++j) {
     delta_max = fmaxf(delta_max, fabsf(bias[j] - h_bias[j]));
   }
@@ -509,12 +511,9 @@ test_update_bias()
   return delta_max;
 }
 
-
-float
-test_update_bias_regularized()
-{
+float test_update_bias_regularized() {
   std::default_random_engine generator;
-  std::uniform_int_distribution<int> d_size(1,1024);
+  std::uniform_int_distribution<int> d_size(1, 1024);
   std::uniform_real_distribution<float> d_entry(0.001, 1);
   std::uniform_real_distribution<float> _d_kbi(-10, 10);
   std::uniform_real_distribution<float> d_khalf(-1000, 0);
@@ -525,15 +524,15 @@ test_update_bias_regularized()
   bcpnn::helpers::random::seed_generator(generator);
 
   size_t m = d_size(generator);
-  float cthr = d_taupdt(generator)/2;
+  float cthr = d_taupdt(generator) / 2;
   float khalf = d_khalf(generator);
   float pmin = d_pmin(generator);
   float taubdt = d_taupdt(generator);
-  //std::cout << "Size: " << n << ", " << m << std::endl;
+  // std::cout << "Size: " << n << ", " << m << std::endl;
 
-  float * bias = (float *)malloc(m * sizeof(float));
-  float * kbi = (float *)malloc(m * sizeof(float));
-  float * Cj = (float *)malloc(m * sizeof(float));
+  float *bias = (float *)malloc(m * sizeof(float));
+  float *kbi = (float *)malloc(m * sizeof(float));
+  float *Cj = (float *)malloc(m * sizeof(float));
 
   for (size_t j = 0; j < m; ++j) {
     if (d_zero(generator) == 0) {
@@ -545,9 +544,9 @@ test_update_bias_regularized()
     kbi[j] = _d_kbi(generator);
   }
 
-  float * d_bias;
-  float * d_kbi;
-  float * d_Cj;
+  float *d_bias;
+  float *d_kbi;
+  float *d_Cj;
 
   CUDA_CALL(cudaMalloc((void **)&d_bias, m * sizeof(float)));
   CUDA_CALL(cudaMalloc((void **)&d_kbi, m * sizeof(float)));
@@ -556,16 +555,20 @@ test_update_bias_regularized()
   CUDA_CALL(cudaMemcpy(d_kbi, kbi, m * sizeof(float), cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(d_Cj, Cj, m * sizeof(float), cudaMemcpyHostToDevice));
 
-  naive_update_bias_regularized<REAL>(bias, kbi, Cj, cthr, khalf, pmin, taubdt, m);
-  cuda_update_bias_regularized<REAL>(d_bias, d_kbi, d_Cj, cthr, khalf, pmin, taubdt, m);
+  naive_update_bias_regularized<REAL>(bias, kbi, Cj, cthr, khalf, pmin, taubdt,
+                                      m);
+  cuda_update_bias_regularized<REAL>(d_bias, d_kbi, d_Cj, cthr, khalf, pmin,
+                                     taubdt, m);
 
-  float * h_bias = (float *)malloc(m * sizeof(float));
-  float * h_kbi = (float *)malloc(m * sizeof(float));
+  float *h_bias = (float *)malloc(m * sizeof(float));
+  float *h_kbi = (float *)malloc(m * sizeof(float));
 
-  CUDA_CALL(cudaMemcpy(h_bias, d_bias, m * sizeof(float), cudaMemcpyDeviceToHost));
-  CUDA_CALL(cudaMemcpy(h_kbi, d_kbi, m * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(
+      cudaMemcpy(h_bias, d_bias, m * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(
+      cudaMemcpy(h_kbi, d_kbi, m * sizeof(float), cudaMemcpyDeviceToHost));
 
-  float delta_max = 0; 
+  float delta_max = 0;
   for (size_t j = 0; j < m; ++j) {
     delta_max = fmaxf(delta_max, fabsf(bias[j] - h_bias[j]));
     delta_max = fmaxf(delta_max, fabsf(kbi[j] - h_kbi[j]));
@@ -606,11 +609,9 @@ test_update_bias_regularized()
   return delta_max;
 }
 
-float
-test_update_mask()
-{
+float test_update_mask() {
   std::default_random_engine generator;
-  std::uniform_int_distribution<int> d_size(1,1024);
+  std::uniform_int_distribution<int> d_size(1, 1024);
   std::uniform_real_distribution<float> d_counter_entry(0.001, 0.999);
   std::uniform_int_distribution<int> d_mask_entry(0, 4);
   std::uniform_real_distribution<float> d_weight_entry(-10, 10);
@@ -621,21 +622,21 @@ test_update_mask()
 
   size_t n = d_size(generator);
   size_t hypercolumns = d_size(generator);
-  std::uniform_int_distribution<int> d_minicolumns(1,1024/hypercolumns);
-  std::uniform_int_distribution<int> d_hypercolumn(0,hypercolumns-1);
+  std::uniform_int_distribution<int> d_minicolumns(1, 1024 / hypercolumns);
+  std::uniform_int_distribution<int> d_hypercolumn(0, hypercolumns - 1);
   size_t minicolumns = d_minicolumns(generator);
   size_t h = d_hypercolumn(generator);
   size_t m = hypercolumns * minicolumns;
   size_t batch_size = d_size(generator);
-  float cthr = d_taupdt(generator)/2;
-  //std::cout << "cthr: " << cthr << std::endl;
-  //std::cout << "Size: " << n << ", " << m << std::endl;
+  float cthr = d_taupdt(generator) / 2;
+  // std::cout << "cthr: " << cthr << std::endl;
+  // std::cout << "Size: " << n << ", " << m << std::endl;
 
-  uint8_t * wmask = (uint8_t *)malloc(n * hypercolumns * sizeof(uint8_t));
-  float * weights = (float *)malloc(n * m * sizeof(float));
-  float * Ci = (float *)malloc(n * sizeof(float));
-  float * Cj = (float *)malloc(m * sizeof(float));
-  float * Cij = (float *)malloc(n * m * sizeof(float));
+  uint8_t *wmask = (uint8_t *)malloc(n * hypercolumns * sizeof(uint8_t));
+  float *weights = (float *)malloc(n * m * sizeof(float));
+  float *Ci = (float *)malloc(n * sizeof(float));
+  float *Cj = (float *)malloc(m * sizeof(float));
+  float *Cij = (float *)malloc(n * m * sizeof(float));
 
   for (size_t i = 0; i < n; ++i) {
     for (size_t h = 0; h < hypercolumns; ++h) {
@@ -664,7 +665,8 @@ test_update_mask()
       if (d_zero(generator) == 0) {
         Cij[i * m + j] = 0;
       } else {
-        Cij[i * m + j] = fminf(0.9 * Ci[i], fminf(0.9 * Cj[j], d_counter_entry(generator)));
+        Cij[i * m + j] =
+            fminf(0.9 * Ci[i], fminf(0.9 * Cj[j], d_counter_entry(generator)));
       }
     }
   }
@@ -675,11 +677,11 @@ test_update_mask()
     }
   }
 
-  uint8_t * d_wmask;
-  float * d_weights;
-  float * d_Ci;
-  float * d_Cj;
-  float * d_Cij;
+  uint8_t *d_wmask;
+  float *d_weights;
+  float *d_Ci;
+  float *d_Cj;
+  float *d_Cij;
 
   CUDA_CALL(cudaMalloc((void **)&d_wmask, n * hypercolumns * sizeof(uint8_t)));
   CUDA_CALL(cudaMalloc((void **)&d_weights, n * m * sizeof(float)));
@@ -687,18 +689,24 @@ test_update_mask()
   CUDA_CALL(cudaMalloc((void **)&d_Cj, m * sizeof(float)));
   CUDA_CALL(cudaMalloc((void **)&d_Cij, n * m * sizeof(float)));
 
-  CUDA_CALL(cudaMemcpy(d_wmask, wmask, n * hypercolumns * sizeof(uint8_t), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(d_weights, weights, n * m * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(d_wmask, wmask, n * hypercolumns * sizeof(uint8_t),
+                       cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(d_weights, weights, n * m * sizeof(float),
+                       cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(d_Ci, Ci, n * sizeof(float), cudaMemcpyHostToDevice));
   CUDA_CALL(cudaMemcpy(d_Cj, Cj, m * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(d_Cij, Cij, n * m * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(
+      cudaMemcpy(d_Cij, Cij, n * m * sizeof(float), cudaMemcpyHostToDevice));
 
-  naive_update_mask<REAL>(wmask, weights, Ci, Cj, Cij, cthr, n, m, h, hypercolumns, minicolumns, 1);
-  cuda_update_mask<REAL>(d_wmask, d_weights, d_Ci, d_Cj, d_Cij, cthr, n, m, h, hypercolumns, minicolumns, 1);
+  naive_update_mask<REAL>(wmask, weights, Ci, Cj, Cij, cthr, n, m, h,
+                          hypercolumns, minicolumns, 1);
+  cuda_update_mask<REAL>(d_wmask, d_weights, d_Ci, d_Cj, d_Cij, cthr, n, m, h,
+                         hypercolumns, minicolumns, 1);
 
-  uint8_t * h_wmask = (uint8_t *)malloc(n * hypercolumns * sizeof(uint8_t));
+  uint8_t *h_wmask = (uint8_t *)malloc(n * hypercolumns * sizeof(uint8_t));
 
-  CUDA_CALL(cudaMemcpy(h_wmask, d_wmask, n * hypercolumns * sizeof(uint8_t), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(h_wmask, d_wmask, n * hypercolumns * sizeof(uint8_t),
+                       cudaMemcpyDeviceToHost));
 
   float delta_max = 0;
   for (size_t i = 0; i < n; ++i) {
@@ -746,13 +754,9 @@ test_update_mask()
   return delta_max;
 }
 
-
-
-float
-test_apply_mask()
-{
+float test_apply_mask() {
   std::default_random_engine generator;
-  std::uniform_int_distribution<int> d_size(1,1024);
+  std::uniform_int_distribution<int> d_size(1, 1024);
   std::uniform_int_distribution<int> d_mask_entry(0, 4);
   std::uniform_real_distribution<float> d_weight_entry(-10, 10);
 
@@ -760,12 +764,12 @@ test_apply_mask()
 
   size_t n = d_size(generator);
   size_t hypercolumns = d_size(generator);
-  std::uniform_int_distribution<int> d_minicolumns(1,1024/hypercolumns);
+  std::uniform_int_distribution<int> d_minicolumns(1, 1024 / hypercolumns);
   size_t minicolumns = d_minicolumns(generator);
   size_t m = hypercolumns * minicolumns;
 
-  uint8_t * wmask = (uint8_t *)malloc(n * hypercolumns * sizeof(uint8_t));
-  float * weights = (float *)malloc(n * m * sizeof(float));
+  uint8_t *wmask = (uint8_t *)malloc(n * hypercolumns * sizeof(uint8_t));
+  float *weights = (float *)malloc(n * m * sizeof(float));
 
   for (size_t i = 0; i < n; ++i) {
     for (size_t h = 0; h < hypercolumns; ++h) {
@@ -779,21 +783,24 @@ test_apply_mask()
     }
   }
 
-  uint8_t * d_wmask;
-  float * d_weights;
+  uint8_t *d_wmask;
+  float *d_weights;
 
   CUDA_CALL(cudaMalloc((void **)&d_wmask, n * hypercolumns * sizeof(uint8_t)));
   CUDA_CALL(cudaMalloc((void **)&d_weights, n * m * sizeof(float)));
 
-  CUDA_CALL(cudaMemcpy(d_wmask, wmask, n * hypercolumns * sizeof(uint8_t), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(d_weights, weights, n * m * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(d_wmask, wmask, n * hypercolumns * sizeof(uint8_t),
+                       cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(d_weights, weights, n * m * sizeof(float),
+                       cudaMemcpyHostToDevice));
 
-  naive_apply_mask<REAL>(weights, wmask,n, m, hypercolumns, minicolumns);
+  naive_apply_mask<REAL>(weights, wmask, n, m, hypercolumns, minicolumns);
   cuda_apply_mask<REAL>(d_weights, d_wmask, n, m, hypercolumns, minicolumns);
 
-  float * h_weights = (float *)malloc(n * m * sizeof(float));
+  float *h_weights = (float *)malloc(n * m * sizeof(float));
 
-  CUDA_CALL(cudaMemcpy(h_weights, d_weights, n * m * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(h_weights, d_weights, n * m * sizeof(float),
+                       cudaMemcpyDeviceToHost));
 
   float delta_max = 0;
   for (size_t i = 0; i < n; ++i) {

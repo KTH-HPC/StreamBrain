@@ -1,11 +1,9 @@
-#include <iostream>
 #include <cmath>
+#include <iostream>
 
 #include "testing.h"
 
-int
-main()
-{
+int main() {
   float delta;
 
   size_t const iterations = 100;
@@ -50,7 +48,11 @@ main()
   for (size_t i = 0; i < iterations; ++i) {
     delta = fmaxf(delta, test_update_mask());
   }
-  std::cout << "Max delta update_mask(): " << delta <<  "\tThis is usually flakey. Ends up with several inputs with score 0 and thus several different options. There are options in the kernels to print more detailed information." << std::endl;
+  std::cout << "Max delta update_mask(): " << delta
+            << "\tThis is usually flakey. Ends up with several inputs with "
+               "score 0 and thus several different options. There are options "
+               "in the kernels to print more detailed information."
+            << std::endl;
 
   delta = 0;
   for (size_t i = 0; i < iterations; ++i) {
