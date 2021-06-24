@@ -74,6 +74,8 @@ if __name__ == "__main__":
       l1_training_images, l1_training_labels = load_mnist("train-images-idx3-ubyte", "train-labels-idx1-ubyte", dtype=precision)
       l2_training_images = l1_training_images
       l2_training_labels = l1_training_labels
+#      l1_training_labels = np.zeros([l1_training_images.shape[0], 10])
+#      l2_training_images = l1_training_images
 
       testing_images, testing_labels = load_mnist("t10k-images-idx3-ubyte", "t10k-labels-idx1-ubyte", dtype=precision)
     elif dataset == "fashion_mnist":
@@ -134,7 +136,7 @@ if __name__ == "__main__":
 
     train_start = time.time()
     net.fit(l1_training_images, l1_training_labels, batch_size, [(0, l1_epochs)])
-    net.fit(l2_training_images, l2_training_labels, batch_size, [(1, l2_epochs)])
+    net.fit(l1_training_images, l1_training_labels, batch_size, [(1, l2_epochs)])
     train_stop = time.time()
 
     test_start = time.time()
