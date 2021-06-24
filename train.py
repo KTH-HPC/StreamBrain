@@ -62,13 +62,14 @@ if __name__ == "__main__":
         precision = np.float64
     batch_size = int(sys.argv[3])
 
-    print(
-        'Dataset:',
-        dataset,
-        'Batch size:',
-        batch_size,
-        'precision:',
-        precision)
+    if world_rank == 0:
+        print(
+            'Dataset:',
+            dataset,
+            'Batch size:',
+            batch_size,
+            'precision:',
+            precision)
 
     if dataset == "mnist":
         n_hypercolumns = 15
@@ -83,13 +84,12 @@ if __name__ == "__main__":
         l1_epochs = 30
         l2_epochs = 60
 
-        n_inputs = 28 * 28
         l1_training_images, l1_training_labels = load_mnist(
             "train-images-idx3-ubyte", "train-labels-idx1-ubyte", dtype=precision)
         l2_training_images = l1_training_images
         l2_training_labels = l1_training_labels
-#      l1_training_labels = np.zeros([l1_training_images.shape[0], 10])
-#      l2_training_images = l1_training_images
+
+        n_inputs = l1_training_images.shape[1]
 
         testing_images, testing_labels = load_mnist(
             "t10k-images-idx3-ubyte", "t10k-labels-idx1-ubyte", dtype=precision)
@@ -106,11 +106,12 @@ if __name__ == "__main__":
         l1_epochs = 30
         l2_epochs = 60
 
-        n_inputs = 28 * 28
         l1_training_images, l1_training_labels = load_mnist(
             "train-images-idx3-ubyte", "train-labels-idx1-ubyte", dtype=precision)
         l2_training_images = l1_training_images
         l2_training_labels = l1_training_labels
+
+        n_inputs = l1_training_images.shape[1]
 
         testing_images, testing_labels = load_mnist(
             "t10k-images-idx3-ubyte", "t10k-labels-idx1-ubyte", dtype=precision)
