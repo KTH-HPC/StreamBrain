@@ -16,18 +16,31 @@ StreamBrain is published at the International Symposium on Highly Efficient Acce
 
 # Installation
 StreamBrain requires a number of dependencies, including Numpy (MKL), BLAS (MKL, OpenBLAS, etc), CMake, GCC, MPI, CUDA (Optional), and FPGA toolchain (Optional). PyBind11 is included as a Git module and must be fetched before building StreamBrain. The library also uses mpi4py and tqdm. Check `requirements.txt`.
+
+## Setting up environment
+We recommend to use Anaconda as the Python environment.
 ```bash
-git submodule update --init --recursive
-pip install -r requirements.txt
-python setup.py install --user
+conda create -n StreamBrain python=3.9
+conda activate StreamBrain
+conda install numpy tqdm cmake
+pip install mpi4py # Use pip such that it will compile against the system MPI installation
 ```
 
-# Setting up backend environments
+## Building StreamBrain backends
+To build StreamBrain, clone from the repository, fetch the submodule, and install.
+```bash
+git submodule update --init --recursive
+python setup.py install --user
+```
+All the backends will be built.
+
+# Setting backend environments
 To select the backend, set the environment variable `BCPNN_BACKEND`. We currently support the following backends:
 - Numpy, default backend if the variable is not set (`export BCPNN_BACKEND=numpy`)
-- CPU Backend kernels with vectorization and OpenMP threading (`export BCPNN_BACKEND=cpu`)
+- (recommended) CPU Backend kernels with vectorization and OpenMP threading (`export BCPNN_BACKEND=cpu`)
+- (recommended) Fully offloaded GPU backend that runs entirely in C++/CUDA (`export BCPNN_BACKEND=full_cuda`)
 - MPI+OpenMP backend kernels with data parallelism on training batch (`export BCPNN_BACKEND=mpi`)
-- Fully offloaded GPU backend that runs entirely in C++/CUDA (`export BCPNN_BACKEND=full_cuda`)
+- GPU Backend with partially offloaded kernels (`export BCPNN_BACKEND=cpu`)
 - FPGA (not available currently) (`export BCPNN_BACKEND=fpga`)
 
 Furthermore, to select the number of threads set the OpenMP environment variable `export OMP_NUM_THREADS=X` where `X` is the number of threads.
