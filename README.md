@@ -1,10 +1,21 @@
 # StreamBrain
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://opensource.org/licenses/BSD-2-Clause)
 
-StreamBrain is a framework that enables the practical deployment of neural networks that are based on the brain-like Bayesian Confidence Propagation Neural Network (BCPNN). In particular, StreamBrain is a domain-specific language (DSL), similar in concept to existing machine learning (ML) frameworks, that aims to allow the use of BCPNN networks on High-Performance Computing systems. The framework supports a variety of backends, such as CPUs, GPUs, and even FPGAs. We provide a set of example training scripts to train for the classification of MNIST, Fashion MNIST, and STL-10.
+StreamBrain is a framework that enables the practical deployment of neural networks that are based on the brain-like Bayesian Confidence Propagation Neural Network (BCPNN). More specifically, StreamBrain provides a domain-specific language (DSL), similar in concept to existing machine learning (ML) frameworks, that aims to allow the use of BCPNN networks on High-Performance Computing systems. The framework supports a variety of backends, such as CPUs (vectorized, OpenMP, and MPI), GPUs (CUDA), and even FPGAs. We provide a set of example training scripts to train for the classification of MNIST, Fashion MNIST, and STL-10.
+
+If you find our work useful, we would appreciate that you cite us:
+```bibtex
+@article{podobas2021streambrain,
+  title={StreamBrain: An HPC Framework for Brain-like Neural Networks on CPUs, GPUs and FPGAs},
+  author={Podobas, Artur and Svedin, Martin and Chien, Steven WD and Peng, Ivy B and Ravichandran, Naresh Balaji and Herman, Pawel and Lansner, Anders and Markidis, Stefano},
+  journal={arXiv preprint arXiv:2106.05373},
+  year={2021}
+}
+```
+StreamBrain is published at the International Symposium on Highly Efficient Accelerators and Reconfigurable Technologies (HEART 2021).
 
 # Installation
-StreamBrain requires a number of dependencies, including Numpy (MKL), CMake, GCC, CUDA (Optional), and FPGA toolchain (Optional). PyBind11 is included as a Git module and must be fetched before building StreamBrain.
+StreamBrain requires a number of dependencies, including Numpy (MKL), BLAS (MKL, OpenBLAS, etc), CMake, GCC, MPI, CUDA (Optional), and FPGA toolchain (Optional). PyBind11 is included as a Git module and must be fetched before building StreamBrain. The library also uses mpi4py and tqdm. Check `requirements.txt`.
 ```bash
 git submodule update --init --recursive
 pip install -r requirements.txt
@@ -54,7 +65,7 @@ gzip -d t10k-labels-idx1-ubyte.gz
 STL-10 is a color image dataset that is partly labeled and partly unlabelled.
 ```bash
 wget http://ai.stanford.edu/~acoates/stl10/stl10_binary.tar.gz
-tar -xvzf --strip-components=1 stl10_binary.tar.gz
+tar -xvzf stl10_binary.tar.gz --strip-components=1
 ```
 
 # Training
@@ -89,18 +100,6 @@ Testing duration:  0.15649056434631348
 Accuracy:          [0.9518]
 ```
 The MNIST training with the provided hyperparameters should give approximately 95% test accuracy, whereas the Fashion MNIST should give approximately 74% test accuracy.
-
-# Cite us
-If you find our work useful, we would appreciate that you cite us:
-```bibtex
-@article{podobas2021streambrain,
-  title={StreamBrain: An HPC Framework for Brain-like Neural Networks on CPUs, GPUs and FPGAs},
-  author={Podobas, Artur and Svedin, Martin and Chien, Steven WD and Peng, Ivy B and Ravichandran, Naresh Balaji and Herman, Pawel and Lansner, Anders and Markidis, Stefano},
-  journal={arXiv preprint arXiv:2106.05373},
-  year={2021}
-}
-```
-StreamBrain is published at the International Symposium on Highly Efficient Accelerators and Reconfigurable Technologies (HEART 2021).
 
 # License
 StreamBrain is developed by Martin Svedi, Artur Podobas, and Steven W. D. Chien, and Stefano Markidis. The software is released under the BSD 2-Clause license. See LICENSE for details.

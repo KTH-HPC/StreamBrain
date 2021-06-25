@@ -125,7 +125,7 @@ if __name__ == "__main__":
         l1_density = 0.568746541818903
         l1_mask_iterations = 584
         l2_taupdt = 4.983000352087509e-07
-        l1_epochs = 10
+        l1_epochs = 100
         l2_epochs = 20
         n_inputs = 3 * 96 * 96
 
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     train_start = time.time()
     net.fit(l1_training_images, l1_training_labels,
             batch_size, [(0, l1_epochs)])
-    net.fit(l1_training_images, l1_training_labels,
+    net.fit(l2_training_images, l2_training_labels,
             batch_size, [(1, l2_epochs)])
     train_stop = time.time()
 

@@ -1,5 +1,5 @@
 #include <math.h>
-#include <mkl.h>  // #include <cblas.h>
+#include <cblas.h>
 #include <mpi.h>
 #include <omp.h>
 

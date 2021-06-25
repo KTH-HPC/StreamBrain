@@ -63,12 +63,8 @@ if(CUDA_FOUND)
   pybind11_add_module(_bcpnn_kernels_cuda_internal MODULE
     BCPNN/backend/_kernels/kernels_cuda_internal.cu
   )
-  #set_property(TARGET _bcpnn_kernels_cuda_internal PROPERTY CUDA_ARCHITECTURES 60 61 70 75)
-  target_compile_options(_bcpnn_kernels_cuda_internal PRIVATE
-    "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Xcompiler -ffast-math -gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75>"
-  )
+  set_property(TARGET _bcpnn_kernels_cuda_internal PROPERTY CUDA_ARCHITECTURES 30 35 60 61 70 75 80)
   target_link_libraries(_bcpnn_kernels_cuda_internal PRIVATE curand cublas)
-  
   # Fully offloaded CUDA backend
   pybind11_add_module(_bcpnn_backend_full_cuda_internals MODULE
     BCPNN/backend/full_cuda_backend/backend_full_cuda_internals.cu
@@ -76,9 +72,6 @@ if(CUDA_FOUND)
     BCPNN/backend/full_cuda_backend/helpers_training.cu
     BCPNN/backend/full_cuda_backend/helpers_cuda.cu
   )
-  #set_property(TARGET _bcpnn_backend_full_cuda_internals PROPERTY CUDA_ARCHITECTURES 60 61 70 75)
-  target_compile_options(_bcpnn_backend_full_cuda_internals PRIVATE
-    "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-Xcompiler -ffast-math -gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75>"
-  )
+  set_property(TARGET _bcpnn_backend_full_cuda_internals PROPERTY CUDA_ARCHITECTURES 30 35 60 61 70 75 80)
   target_link_libraries(_bcpnn_backend_full_cuda_internals PRIVATE curand cublas)
 endif()
