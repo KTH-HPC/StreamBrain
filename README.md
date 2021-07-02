@@ -5,11 +5,17 @@ StreamBrain is a framework that enables the practical deployment of neural netwo
 
 If you find our work useful, we would appreciate that you cite us:
 ```bibtex
-@article{podobas2021streambrain,
-  title={StreamBrain: An HPC Framework for Brain-like Neural Networks on CPUs, GPUs and FPGAs},
-  author={Podobas, Artur and Svedin, Martin and Chien, Steven WD and Peng, Ivy B and Ravichandran, Naresh Balaji and Herman, Pawel and Lansner, Anders and Markidis, Stefano},
-  journal={arXiv preprint arXiv:2106.05373},
-  year={2021}
+@inproceedings{10.1145/3468044.3468052,
+  author = {Podobas, Artur and Svedin, Martin and Chien, Steven W. D. and Peng, Ivy B. and Ravichandran, Naresh Balaji and Herman, Pawel and Lansner, Anders and Markidis, Stefano},
+  title = {StreamBrain: An HPC Framework for Brain-like Neural Networks on CPUs, GPUs and FPGAs},
+  year = {2021},
+  publisher = {Association for Computing Machinery},
+  doi = {10.1145/3468044.3468052},
+  booktitle = {Proceedings of the 11th International Symposium on Highly Efficient Accelerators and Reconfigurable Technologies},
+  articleno = {8},
+  numpages = {6},
+  location = {Online, Germany},
+  series = {HEART '21}
 }
 ```
 StreamBrain is published at the International Symposium on Highly Efficient Accelerators and Reconfigurable Technologies (HEART 2021).
