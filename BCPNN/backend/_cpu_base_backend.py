@@ -2,6 +2,10 @@ import sys
 import numpy as np
 from tqdm import tqdm
 from contextlib import nullcontext
+import vtk
+from vtk.util import numpy_support
+from paraview.modules import vtkPVCatalyst as catalyst
+from . import insitu_wmask
 
 
 class DenseLayer:
@@ -194,9 +198,8 @@ class Network:
         training_data = training_data.astype(self.dtype)
         training_labels = training_labels.astype(self.dtype)
 
-        for layer_id, (layer, epochs) in enumerate(schedule):
+        for layer, epochs in schedule:
             self._train_layer(
-                layer_id,
                 layer,
                 maximal_batch_size,
                 training_data,
@@ -247,7 +250,6 @@ class Network:
 
     def _train_layer(
             self,
-            layer_id,
             layer,
             maximal_batch_size,
             images,
@@ -256,7 +258,7 @@ class Network:
         for epoch in range(epochs):
             if self.world_rank == 0:
                 print('Layer - %d/%d' %
-                      (layer_id + 1, len(self._layers)), flush=True)
+                      (layer + 1, len(self._layers)), flush=True)
             idx = np.random.permutation(range(images.shape[0]))
             shuffled_images = images[idx, :]
             shuffled_labels = labels[idx, :]
@@ -314,3 +316,28 @@ class Network:
                         pbar.update(1)
 
                 self._layers[layer].train_finalize()
+                if isinstance(self._layers[layer], StructuralPlasticityLayer) and self.world_rank == 0:
+                    data = self._layers[layer].wmask.transpose().flatten().reshape(15,28,28,1)
+  
+                    #writer = vtk.vtkXMLImageDataWriter()
+                    #writer.SetFileName("./wmask_"+str(epoch)+".vti")
+  
+                    image = vtk.vtkImageData()
+                    image.SetDimensions(data[0].shape)
+                    image.SetSpacing([1,1,1])
+                    image.SetOrigin([0,0,0])
+  
+                    for i in range(n_hypercolumns):
+                        depthArray = numpy_support.numpy_to_vtk(data[i].ravel(), deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
+                        depthArray.SetName(str(i))
+                        image.GetPointData().AddArray(depthArray)
+  
+                    dataDescription = catalyst.vtkCPDataDescription()
+                    dataDescription.SetTimeData(epoch, epoch)
+                    dataDescription.AddInput("wmask")
+
+                    dataDescription.GetInputDescriptionByName("wmask").SetGrid(image)
+                    insitu_wmask.DoCoProcessing(dataDescription)
+                    #writer.SetInputData(image)
+                    #writer.Update()
+                    #writer.Write()

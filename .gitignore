@@ -64,3 +64,6 @@ vgcore.*
 *.nvvp
 *.bin
 *.vscode
+
+*.pvti
+*.vti
