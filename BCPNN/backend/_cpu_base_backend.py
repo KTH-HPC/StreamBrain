@@ -2,10 +2,7 @@ import sys
 import numpy as np
 from tqdm import tqdm
 from contextlib import nullcontext
-import vtk
-from vtk.util import numpy_support
-from paraview.modules import vtkPVCatalyst as catalyst
-from . import insitu_wmask
+from BCPNN.viz.insitu_viz import coprocess
 
 
 class DenseLayer:
@@ -317,27 +314,5 @@ class Network:
 
                 self._layers[layer].train_finalize()
                 if isinstance(self._layers[layer], StructuralPlasticityLayer) and self.world_rank == 0:
-                    data = self._layers[layer].wmask.transpose().flatten().reshape(15,28,28,1)
-  
-                    #writer = vtk.vtkXMLImageDataWriter()
-                    #writer.SetFileName("./wmask_"+str(epoch)+".vti")
-  
-                    image = vtk.vtkImageData()
-                    image.SetDimensions(data[0].shape)
-                    image.SetSpacing([1,1,1])
-                    image.SetOrigin([0,0,0])
-  
-                    for i in range(n_hypercolumns):
-                        depthArray = numpy_support.numpy_to_vtk(data[i].ravel(), deep=True, array_type=vtk.VTK_UNSIGNED_CHAR)
-                        depthArray.SetName(str(i))
-                        image.GetPointData().AddArray(depthArray)
-  
-                    dataDescription = catalyst.vtkCPDataDescription()
-                    dataDescription.SetTimeData(epoch, epoch)
-                    dataDescription.AddInput("wmask")
-
-                    dataDescription.GetInputDescriptionByName("wmask").SetGrid(image)
-                    insitu_wmask.DoCoProcessing(dataDescription)
-                    #writer.SetInputData(image)
-                    #writer.Update()
-                    #writer.Write()
+                    data = self._layers[layer].wmask.transpose().reshape(15,28,28,1)
+                    coprocess(data, n_hypercolumns, epoch)
