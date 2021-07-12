@@ -70,7 +70,7 @@ if(CUDA_FOUND)
     BCPNN/backend/full_cuda_backend/helpers_training.cu
     BCPNN/backend/full_cuda_backend/helpers_cuda.cu
   )
-  if (CMAKE_VERSION VERSION_LESS 3.21)
+  if (CMAKE_VERSION VERSION_LESS 3.18)
     target_compile_options(_bcpnn_kernels_cuda_internal PRIVATE
       "$<$<COMPILE_LANGUAGE:CUDA>:SHELL:-gencode arch=compute_35,code=sm_35 -gencode arch=compute_37,code=sm_37 -gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75 -gencode arch=compute_80,code=sm_80>")
     target_compile_options(_bcpnn_backend_full_cuda_internals PRIVATE
@@ -80,5 +80,19 @@ if(CUDA_FOUND)
     set_property(TARGET _bcpnn_backend_full_cuda_internals PROPERTY CUDA_ARCHITECTURES 35 50 60 61 70 75 80)
   endif()
   target_link_libraries(_bcpnn_kernels_cuda_internal PRIVATE curand cublas)
-  target_link_libraries(_bcpnn_backend_full_cuda_internals PRIVATE curand cublas)
+
+  enable_language(C)
+  find_package(ParaView 5.9 REQUIRED COMPONENTS PythonCatalyst)
+  if (ParaView_FOUND)
+    add_library(catalystAdaptor STATIC BCPNN/backend/full_cuda_backend/CatalystAdaptor.cpp)
+    set_property(TARGET catalystAdaptor PROPERTY POSITION_INDEPENDENT_CODE ON)
+    target_include_directories(catalystAdaptor PRIVATE include ${PARAVIEW_INCLUDE_PATH})
+    target_link_libraries(catalystAdaptor PRIVATE
+        ParaView::Catalyst ParaView::PythonCatalyst VTK::CommonDataModel)
+    message(STATUS "Building ParaView support")
+    target_compile_definitions(_bcpnn_backend_full_cuda_internals PRIVATE USE_CATALYST)
+    target_link_libraries(_bcpnn_backend_full_cuda_internals PRIVATE curand cublas catalystAdaptor)
+  else()
+    target_link_libraries(_bcpnn_backend_full_cuda_internals PRIVATE curand cublas)
+  endif()
 endif()

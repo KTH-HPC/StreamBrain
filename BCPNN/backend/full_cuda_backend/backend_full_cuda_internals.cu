@@ -20,6 +20,10 @@
 #include "helpers_training.h"
 #include "kernels_cuda.h"
 
+#ifdef USE_CATALYST
+#include "CatalystAdaptor.h"
+#endif
+
 #define ACCURACY_CPU_DOUBLE_CHECK
 
 std::default_random_engine generator;
@@ -552,6 +556,14 @@ void Network<REAL>::train_layer(dataloader<REAL> &loader,
       MaskedDenseLayerTrainingAllocation<REAL> *alloc =
           dynamic_cast<MaskedDenseLayerTrainingAllocation<REAL> *>(allocs[0]);
       if (layer && alloc) {
+#ifdef USE_CATALYST
+        size_t n = 28 * 28;
+        uint8_t *w = (uint8_t *)malloc(n * layer->n_hypercolumns_ * sizeof(uint8_t));
+        CUDA_CALL(cudaMemcpy(w, alloc->wmask, n * layer->n_hypercolumns_ * sizeof(uint8_t),
+                             cudaMemcpyDeviceToHost));
+        Adaptor::CoProcess(epoch, epoch, w);
+        free(w);
+#endif
         print_wmask(alloc->wmask, 28, 28, layer->n_hypercolumns_);
       }
       printf("\nLayer 1/%lu - Epoch : %ld\n\n", layers_.size(), epoch);
@@ -759,6 +771,9 @@ PYBIND11_MODULE(_bcpnn_backend_full_cuda_internals, m) {
 
     CUBLAS_CALL(cublasCreate(&handle));
     CURAND_CALL(curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT));
+#ifdef USE_CATALYST
+    Adaptor::Initialize("BCPNN/viz/image.py", 28, 28, 15);
+#endif
   });
 
   py::class_<PyNetwork<float>>(m, "PyNetwork_float32")
