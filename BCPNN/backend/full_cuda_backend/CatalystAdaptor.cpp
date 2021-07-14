@@ -8,8 +8,7 @@
 #include <vtkCPPythonScriptPipeline.h>
 #include <vtkCellData.h>
 #include <vtkCellType.h>
-#include <vtkDoubleArray.h>
-#include <vtkIntArray.h>
+#include <vtkUnsignedCharArray.h>
 #include <vtkNew.h>
 #include <vtkPointData.h>
 #include <vtkPoints.h>
@@ -36,25 +35,20 @@ void UpdateVTKAttributes(vtkCPInputDataDescription* idd, unsigned int timeStep, 
 
   for (size_t h = 0; h < _hypercolumns; h++) {
     // electric charge density for species 0 and 1
-    vtkNew<vtkDoubleArray> wmask_array{};
+    vtkNew<vtkUnsignedCharArray> wmask_array{};
     wmask_array->SetName(std::to_string(h).c_str());
     wmask_array->SetNumberOfComponents(1);
     wmask_array->SetNumberOfTuples(VTKGrid->GetNumberOfPoints());
     vtk_point_data->AddArray(wmask_array);
 
-    // Cycle over all VTK grid's points, get their indices and copy the data.
-    // We want to have only one cycle over point's ID to efficiently use multi-threading.
-    for (long p = 0; p < VTKGrid->GetNumberOfPoints(); ++p)
-    {
-      // Get cells's indices i, j , k
-      unsigned long k = 0;//= p / (dims[0] * dims[1]);
-      unsigned long j = (p - k * dims[0] * dims[1]) / dims[0];
-      unsigned long i = p - k * dims[0] * dims[1] - j * dims[0];
-
-      wmask_array->SetValue(p, wmask[(i * _columns + j) * _hypercolumns + h]);
+    long p = 0;
+    for (size_t i = 0; i < _rows; ++i) {
+      for (size_t j = 0; j < _columns; ++j) {
+        wmask_array->SetValue(p, wmask[(i * _columns + j) * _hypercolumns + h]);
+	p++;
+      }
     }
   }
-printf("number arrays: %d\n", vtk_point_data->GetNumberOfArrays());
 }
 
 //----------------------------------------------------------------------------
@@ -95,6 +89,7 @@ void Initialize(const char* script, const size_t rows, const size_t columns, con
     // we could delete it and rebuild as necessary.
     VTKGrid = vtkImageData::New();
     VTKGrid->SetDimensions(_rows, _columns, 1);
+    VTKGrid->SetOrigin(0,0,0);
     VTKGrid->SetSpacing(1,1,1);
   }
 }
