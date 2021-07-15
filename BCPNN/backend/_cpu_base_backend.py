@@ -194,9 +194,8 @@ class Network:
         training_data = training_data.astype(self.dtype)
         training_labels = training_labels.astype(self.dtype)
 
-        for layer_id, (layer, epochs) in enumerate(schedule):
+        for layer, epochs in schedule:
             self._train_layer(
-                layer_id,
                 layer,
                 maximal_batch_size,
                 training_data,
@@ -247,7 +246,6 @@ class Network:
 
     def _train_layer(
             self,
-            layer_id,
             layer,
             maximal_batch_size,
             images,
@@ -256,7 +254,7 @@ class Network:
         for epoch in range(epochs):
             if self.world_rank == 0:
                 print('Layer - %d/%d' %
-                      (layer_id + 1, len(self._layers)), flush=True)
+                      (layer + 1, len(self._layers)), flush=True)
             idx = np.random.permutation(range(images.shape[0]))
             shuffled_images = images[idx, :]
             shuffled_labels = labels[idx, :]
